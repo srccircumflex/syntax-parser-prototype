@@ -56,7 +56,7 @@ Overview
 
     visualisation.start_structure_graph_app(root)
 
-.. image:: https://raw.githubusercontent.com/srccircumflex/syntax-parser-prototype/docs/phrase-graph-app.png
+.. image:: https://raw.githubusercontent.com/srccircumflex/syntax-parser-prototype/master/docs/phrase-graph-app.png
     :align: center
 
 
@@ -66,7 +66,7 @@ Overview
     visualisation.html_on_server(result)
 
 
-.. image:: https://raw.githubusercontent.com/srccircumflex/syntax-parser-prototype/docs/html-app.png
+.. image:: https://raw.githubusercontent.com/srccircumflex/syntax-parser-prototype/master/docs/html-app.png
     :align: center
 
 
