@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools==76.1.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "syntax-parser-prototype"
+authors = [
+    {name = "Adrian F. Hoefflin", email = "srccircumflex@outlook.com"},
+]
+description = "prototype of a sytaxparser"
+readme = {file = "README.rst", content-type = "text/x-rst"}
+keywords = [
+    "syntax", "parser", "prototype", "compiler", "framework"
+]
+license = {text = "MIT License"}
+classifiers = [
+    "Topic :: Text Processing",
+    "Topic :: Software Development :: Libraries :: Application Frameworks",
+    "Topic :: Software Development :: Interpreters",
+    "Topic :: Software Development :: Compilers",
+    "Topic :: Software Development",
+    "Programming Language :: Python",
+]
+dynamic = ["version"]
+
+[project.optional-dependencies]
+visualisation = [
+    "dash",
+    "dash-cytoscape",
+    "dash-dangerously-set-inner-html",
+]
+
+[tool.setuptools.dynamic]
+version = {attr = "syntax_parser_prototype.__version__"}
+
+[project.urls]
+Homepage = "https://github.com/srccircumflex/syntax-parser-prototype"
