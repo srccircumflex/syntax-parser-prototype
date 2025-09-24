@@ -1,12 +1,12 @@
-from syntax_parser_prototype import RootPhrase, RootBranch, RootToken, RootNodeToken, Branch, Token, NodeToken
+from .baseobjects import RootPhrase, RootBranch, RootToken, RootNodeToken, Branch, Token, NodeToken
 
 
-def pretty_xml_result(branch: Branch) -> str:
+def pretty_xml_result(branch: Branch | RootBranch) -> str:
     import xml.dom.minidom
     return xml.dom.minidom.parseString(repr(branch)).toprettyxml()
 
 
-def html_on_server(branch: Branch):
+def html_on_server(branch: Branch | RootBranch, linear_layout=False):
     import dash_dangerously_set_inner_html
     from dash import Dash, html
 
@@ -19,15 +19,28 @@ def html_on_server(branch: Branch):
     </style>
     """
 
-    _html += "<pre>"
-    for token in branch.gen_inner():
-        data_id = ""
-        if isinstance(token, RootNodeToken):
-            data_id = token.branch.phrase.id
-        elif isinstance(token, NodeToken):
-            data_id = token.branch.phrase.id
-        _html += f"<span data-id={data_id} class={token.xml_label!r}>{token.content}</span>"
-    _html += "</pre>"
+    if linear_layout:
+        _html += "<pre>"
+        for token in branch.gen_inner():
+            data_id = ""
+            if isinstance(token, NodeToken):
+                data_id = token.branch.phrase.id
+            _html += f"<span data-id={str(data_id)!r} class={token.xml_label!r}>{token.content}</span>"
+        _html += "</pre>"
+
+    else:
+        _html += "<pre>"
+        for token in branch.gen_inner():
+            data_id = ""
+            if isinstance(token, NodeToken):
+                data_id = token.branch.phrase.id
+                if token.is_start_node:
+                    _html += f"<span data-id={str(data_id)!r} class={token.xml_label!r}>{token.content}"
+                else:
+                    _html += f"{token.content}</span>"
+            else:
+                _html += f"<span data-id={str(data_id)!r} class={token.xml_label!r}>{token.content}</span>"
+        _html += "</pre>"
 
     app = Dash(__name__)
 
@@ -42,7 +55,7 @@ def start_structure_graph_app(root: RootPhrase):
     import dash_cytoscape as cyto
 
     touched = {root}
-    elements = [{'data': {'id': root.id, 'label': root.id}, "classes": "red"}]
+    elements = [{'data': {'id': str(root.id), 'label': str(root.id)}, "classes": "red"}]
 
     def f(phrase):
         if phrase not in touched:
@@ -51,12 +64,16 @@ def start_structure_graph_app(root: RootPhrase):
             elements.append({'data': {'id': p_id, 'label': p_id}})
             for sub_phrase in phrase.__sub_phrases__:
                 sp_id = f'{sub_phrase.id}'
-                elements.append({'data': {'id': f"{p_id}\u2007{sp_id}", 'source': p_id, 'target': sp_id}, "classes": "dir"})
+                elements.append({'data': {'id': f"{p_id}\u2007{sp_id}", 'source': p_id, 'target': sp_id}, "classes": "sub"})
                 f(sub_phrase)
+            for suffix_phrase in phrase.__suffix_phrases__:
+                sp_id = f'{suffix_phrase.id}'
+                elements.append({'data': {'id': f"{p_id}\u2007{sp_id}", 'source': p_id, 'target': sp_id}, "classes": "suffix"})
+                f(suffix_phrase)
 
     for p in root.__sub_phrases__:
         sp_id = f'{p.id}'
-        elements.append({'data': {"id": f"{root.id}\u2007{sp_id}", 'source': root.id, 'target': sp_id}, "classes": "dir"})
+        elements.append({'data': {"id": f"{root.id}\u2007{sp_id}", 'source': root.id, 'target': sp_id}, "classes": "sub"})
         f(p)
 
     app = Dash(__name__)
@@ -87,10 +104,17 @@ def start_structure_graph_app(root: RootPhrase):
                     }
                 },
                 {
-                    'selector': '.dir',
+                    'selector': '.sub',
                     'style': {
                         'target-arrow-shape': 'triangle',
                         'target-arrow-color': 'blue',
+                    }
+                },
+                {
+                    'selector': '.suffix',
+                    'style': {
+                        'target-arrow-shape': 'triangle',
+                        'target-arrow-color': 'green',
                     }
                 },
             ]

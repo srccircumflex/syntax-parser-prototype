@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from re import compile, Pattern
 
-from syntax_parser_prototype import *
-from syntax_parser_prototype import visualisation
+from src.syntax_parser_prototype import *
+from src.syntax_parser_prototype import visualisation
 
 
 class SimpleRegexPhrase(Phrase):
@@ -35,7 +35,7 @@ class SimpleRegexPhrase(Phrase):
             return None
 
 
-root = RootPhrase(id="#root")
+root = RootPhrase()
 
 _bracket = SimpleRegexPhrase(compile('\\('), compile('\\)'), id="bracket").add_self()
 _funcall = SimpleRegexPhrase(compile('\\w+\\s*\\('), compile('\\)'), id="function")
@@ -43,8 +43,8 @@ _consoleline = SimpleRegexPhrase(compile('>>>'), compile('$'), id="consoleline")
 _variable = SimpleRegexPhrase(compile('\\w+(?!\\s*\\()'), stop_pattern=None, id="variable")
 _operation = SimpleRegexPhrase(compile('[-+*/]'), stop_pattern=None, id="operation")
 _curly_brackets = SimpleRegexPhrase(compile("\\{"), compile("}"), id="curly brackets")
-_string_a = SimpleRegexPhrase(compile("'"), compile("'"), id="string").add_phrases(_curly_brackets)
-_string_b = SimpleRegexPhrase(compile('"'), compile('"'), id="string").add_phrases(_curly_brackets)
+_string_a = SimpleRegexPhrase(compile("'"), compile("'"), id="string-a").add_phrases(_curly_brackets)
+_string_b = SimpleRegexPhrase(compile('"'), compile('"'), id="string-b").add_phrases(_curly_brackets)
 _angular_brackets = SimpleRegexPhrase(compile("\\["), compile("]"), id="angular brackets")
 _string_b.add_suffix_phrases(_angular_brackets)
 _bracket.add_phrases(_variable, _operation, _string_a, _string_b, _funcall)
@@ -66,8 +66,11 @@ result = root.parse_string("""\
 42
 """)
 
+# print(root.__repr__())
+# print(result.__repr__())
+# print(visualisation.pretty_xml_result(result))
+
 visualisation.html_on_server(result)
+# visualisation.start_structure_graph_app(root)
 
-#visualisation.start_structure_graph_app(root)
 
-#print(visualisation.pretty_xml_result(result))

@@ -228,6 +228,16 @@ class Token:
         """length of the token-content"""
         return len(self.content)
 
+    @property
+    def is_start_node(self) -> bool:
+        """whether the token is the start-node"""
+        return self is self.branch.start_node
+
+    @property
+    def is_end_node(self) -> bool:
+        """whether the token is the end-node"""
+        return self is self.branch.end_node
+
     def __lt__(self, other: Token) -> bool:
         """used to determine the priority of tokens
 
@@ -343,7 +353,7 @@ class Branch(Token):
                 yield i
 
     def __repr__(self):
-        return f"<{self.xml_label} phrase={self.phrase.id!r}>{str().join(repr(i) for i in self.stack)}</{self.xml_label}>"
+        return f"<{self.xml_label} phrase={str(self.phrase.id)!r}>{str().join(repr(i) for i in self.stack)}</{self.xml_label}>"
 
     def __getitem__(self, item):
         """get token on index"""
@@ -359,7 +369,7 @@ class Branch(Token):
 
 
 class Phrase:
-    id: Any = ""
+    id: Any
     """[*interface*] phrase id"""
     TToken: Type[Token] = Token
     """[*interface*] token class"""
@@ -367,6 +377,14 @@ class Phrase:
     """[*interface*] node-token class"""
     TBranch: Type[Branch] = Branch
     """[*interface*] branch class"""
+
+    @overload
+    def __init__(self, *, id: Any, **kwargs):
+        ...
+
+    @overload
+    def __init__(self, **kwargs):
+        ...
 
     def __init__(self, **kwargs):
         """
@@ -382,6 +400,8 @@ class Phrase:
         :param kwargs: additional attributes set on the phrase object by __dict__.update
         """
         self.__dict__.update(kwargs)
+        if not hasattr(self, "id"):
+            self.id = id(self)
         self.__sub_phrases__ = set()
         self.__suffix_phrases__ = set()
 
@@ -469,7 +489,7 @@ class Phrase:
         return self
 
     def __repr__(self) -> str:
-        return f"<{self.__class__.__name__} {self.id!r}>"
+        return f"<{self.__class__.__name__} {str(self.id)!r}>"
 
 
 class RootToken(Token):
