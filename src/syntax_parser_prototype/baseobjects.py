@@ -396,9 +396,32 @@ class TokenBranch(Token):
         :param branch: parent branch
         :param phrase: phrase object
         """
-        Token.__init__(self, seen_start, content, stream, branch)
+        Token.__init__(self, seen_start, '', stream, branch)
         self.phrase = phrase
-        self.stack = [self.phrase.TNodeToken(self.seen_start, self.content, stream, branch=self)]
+        self.stack = [self.phrase.TNodeToken(self.seen_start, content, stream, branch=self)]
+
+    @property
+    def content(self) -> str:
+        """content of the token branch"""
+        k = "*content"
+        if k not in self.__dict__:
+            self.__dict__[k] = str().join(t.content for t in self.gen_inner())
+        return self.__dict__[k]
+
+    @content.setter
+    def content(self, _):
+        """*noop"""
+        pass
+
+    @content.deleter
+    def content(self):
+        """*delete content cache"""
+        del self.__dict__["*content"]
+
+    @property
+    def last_row_n(self) -> int:
+        """row number where the branch ends"""
+        return self.end_node.row_n
 
     @property
     def root(self) -> RootPhrase:
