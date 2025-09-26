@@ -1,8 +1,8 @@
 .. code-block::
     console
 
-    python3 -m pip install syntax-parser-prototype
-    python3 -m pip install syntax-parser-prototype[visualisation]
+    python3 -m pip install syntax-parser-prototype --upgrade
+    python3 -m pip install syntax-parser-prototype[visualisation] --upgrade
 
 syntax-parser-prototype
 #######################
@@ -44,7 +44,7 @@ All necessary packages can be installed separately.
 .. code-block::
     console
 
-    python3 -m pip install syntax-parser-prototype[visualisation]
+    python3 -m pip install syntax-parser-prototype[visualisation] --upgrade
 
 
 Overview
