@@ -1,10 +1,125 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
-from typing import Any, Generator, overload, TYPE_CHECKING, Type
+from io import StringIO
+from typing import Any, Generator, overload, TYPE_CHECKING, Type, Pattern, Callable
 
 if TYPE_CHECKING:
     from typing_extensions import Self
+
+
+class AdvanceError(RuntimeError):
+
+    def __init__(self, stream: TokenizeStream):
+        super().__init__(
+            f"{stream.__class__.__name__} stuck without advancing.\n"
+            f"in branch: {stream.__stream__.branch!r}\n"
+            f"row@{stream.__stream__.row_n}: {stream.__stream__.row!r}\n"
+            f"unparsed@{stream.__stream__.viewpoint + stream.__cursor__}: {stream.unparsed!r}"
+        )
+
+
+class TokenizeStream:
+    __stream__: Stream
+    """main stream object"""
+    __seen_start__: int
+    """start point of the current token in the designated part"""
+    __buffer__: StringIO
+    """buffer for current token content"""
+    __cursor__: int
+    """current cursor position in the designated part"""
+
+    delimiter: Token | NodeToken | TokenBranch | None
+    """which delimits the designated content (None for row end)"""
+    designated: str
+    """the designated content"""
+
+    def __init__(
+            self,
+            stream: Stream,
+            delimiter: NodeToken | TokenBranch | None,
+    ):
+        """substream for tokenization"""
+        self.__stream__ = stream
+        self.delimiter = delimiter
+        self.__seen_start__ = -1
+        self.__cursor__ = 0
+        self.designated = self.__stream__.row[
+            slice(
+                self.__stream__.viewpoint,
+                self.delimiter.column_start if self.delimiter else None
+            )
+        ]
+
+    @property
+    def unparsed(self) -> str:
+        """look up unparsed part of the designated content"""
+        return self.designated[self.__cursor__:]
+
+    def eat_n(self, n: int = 1) -> str:
+        """advance the stream by n characters of the designated content and return them"""
+        self.__buffer__.write(c := self.designated[self.__cursor__:self.__cursor__ + n])
+        self.__cursor__ += n
+        return c
+
+    def eat_remain(self) -> str:
+        """advance the stream to the end and return the rest of the designated content"""
+        self.__buffer__.write(c := self.designated[self.__cursor__:])
+        self.__cursor__ = len(self.designated)
+        return c
+
+    def eat_until(self, regex: Pattern) -> str | None:
+        """advance the stream to the beginning of the matching pattern in the designated
+        part and return this content (exclusive matching content) or None if no match was found
+        """
+        if m := regex.search(self.unparsed):
+            self.__buffer__.write(c := self.unparsed[:m.start()])
+            self.__cursor__ += m.start()
+            return c
+        else:
+            return None
+
+    def eat_while(self, f: Callable[[str], bool | Any]) -> str:
+        """commit character by character from the designated content and advance the stream
+        as long as the function call returns a truth value, then return the sum
+        """
+        buffer = StringIO()
+        while self.unparsed and f(self.unparsed[0]):
+            buffer.write(self.eat_n(1))
+        return buffer.getvalue()
+
+    def __istart__(self):
+        if self.unparsed:
+            if self.__seen_start__ == self.__cursor__:
+                raise AdvanceError(self)
+            self.__buffer__ = StringIO()
+            return True
+        else:
+            return False
+
+    def __tokenize__(self):
+        branch = self.__stream__.branch
+        while self.__istart__():
+            self.__seen_start__ = self.__cursor__
+            branch.stack.append(branch.phrase.tokenize(self)(
+                seen_start=self.__seen_start__,
+                content=self.__buffer__.getvalue(),
+                stream=self.__stream__,
+                branch=branch,
+            ))
+
+
+class NullTokenizeStream(TokenizeStream):
+
+    def __tokenize__(self):
+        self.__stream__.branch.stack.append(
+            self.__stream__.branch.phrase.TToken(
+                seen_start=0,
+                content=self.designated,
+                stream=self.__stream__,
+                branch=self.__stream__.branch,
+            )
+        )
 
 
 class Stream:
@@ -16,7 +131,7 @@ class Stream:
     """row count"""
     viewpoint: int
     """viewpoint in current row"""
-    branch: Branch
+    branch: TokenBranch
     """current active branch"""
 
     def __init__(
@@ -54,25 +169,21 @@ class Stream:
             self.row_n += 1
             self.viewpoint = 0
 
-    def __carry__(self, item: Token | Branch):
+    def __carry__(self, item: Token | TokenBranch):
         """carry the viewpoint to the end of a parsed token"""
         self.viewpoint += item.seen_start + item.len_token
 
-    def __item_start__(self, item: Token | Branch):
+    def __item_start__(self, item: Token | TokenBranch):
         """start a branch or handle stand-alone-token"""
         if item.seen_start:
             # remain token
-            self.branch.__tokenize__(
-                0,
-                self.row[self.viewpoint:item.column_start],
-                self,
-            )
+            self.branch.phrase.TTokenizeStream(self, item).__tokenize__()
 
         self.branch.stack.append(item)
 
         item.__atStart__(self)
 
-        if isinstance(item, Branch):
+        if isinstance(item, TokenBranch):
             self.branch = item
 
         self.__carry__(item)
@@ -80,7 +191,7 @@ class Stream:
         if self.viewpoint >= len(self.row):
             self.__nextrow__()
 
-    def __search_suffix__(self) -> Branch | None:
+    def __search_suffix__(self) -> TokenBranch | None:
         """search for suffix phrase"""
         suffix_starts = list()
         for xp in self.branch.phrase.__suffix_phrases__:
@@ -94,11 +205,7 @@ class Stream:
         """end a branch"""
         if node.seen_start:
             # remain token
-            self.branch.__tokenize__(
-                0,
-                self.row[self.viewpoint:node.column_start],
-                self,
-            )
+            self.branch.phrase.TTokenizeStream(self, node).__tokenize__()
 
         self.branch.stack.append(node)  # end node
 
@@ -115,7 +222,7 @@ class Stream:
             # return to the parent branch
             self.branch = self.branch.branch
 
-    def __search_sub__(self) -> Branch | Token | None:
+    def __search_sub__(self) -> TokenBranch | Token | None:
         """search for sub phrase"""
         sub_starts = list()
         for sp in self.branch.phrase.__sub_phrases__:
@@ -124,7 +231,7 @@ class Stream:
         return min(sub_starts) if sub_starts else None
 
     def __call__(self):
-        """iteration"""
+        """main iteration"""
         active_stop = self.branch.__ends__(self)
 
         if sub_start := self.__search_sub__():
@@ -135,11 +242,7 @@ class Stream:
         elif active_stop:
             self.__item_stop__(active_stop)
         else:
-            self.branch.__tokenize__(
-                0,
-                self.row[self.viewpoint:],
-                self,
-            )
+            self.branch.phrase.TTokenizeStream(self, None).__tokenize__()
             self.__nextrow__()
 
 
@@ -147,7 +250,7 @@ class Token:
     xml_label = "T"
     """xml label used in repr"""
 
-    branch: Branch
+    branch: TokenBranch
     """source branch of the token"""
     content: str
     """content of the token"""
@@ -163,7 +266,7 @@ class Token:
             seen_start: int,
             content: str,
             stream: Stream,
-            branch: Branch,
+            branch: TokenBranch,
     ):
         """
         Represents a token extracted from a stream within a specific branch.
@@ -208,7 +311,7 @@ class Token:
         return self.branch.stack.index(self)
 
     @property
-    def right_neighbor(self) -> Token | NodeToken | Branch:
+    def right_neighbor(self) -> Token | NodeToken | TokenBranch:
         """right neighbor-token"""
         if self.index_in_branch == len(self.branch.stack) - 1:
             return self.branch.right_neighbor
@@ -216,7 +319,7 @@ class Token:
             return self.branch[self.index_in_branch + 1]
 
     @property
-    def left_neighbor(self) -> Token | NodeToken | Branch:
+    def left_neighbor(self) -> Token | NodeToken | TokenBranch:
         """left neighbor-token"""
         if self.index_in_branch == 0:
             return self.branch.left_neighbor
@@ -268,18 +371,18 @@ class NodeToken(Token):
         self.branch.__atEnd__(stream)
 
 
-class Branch(Token):
+class TokenBranch(Token):
     xml_label = "B"
 
     phrase: Phrase
-    stack: list[NodeToken | Token | Branch | NodeToken]
+    stack: list[NodeToken | Token | TokenBranch | NodeToken]
 
     def __init__(
             self,
             seen_start: int,
             content: str,
             stream: Stream,
-            branch: Branch,
+            branch: TokenBranch,
             phrase: Phrase,
     ):
         """
@@ -287,7 +390,7 @@ class Branch(Token):
 
         [*interface*] (can be used as the return value of the interface method ``Phrase.start``)
 
-        :param seen_start: start point of the token relative to the stream.viewpoint
+        :param seen_start: start point of the token relative to the stream.viewpoint / in stream.unparsed
         :param content: content
         :param stream: stream object
         :param branch: parent branch
@@ -322,24 +425,6 @@ class Branch(Token):
         """length of the start-node-content"""
         return self.start_node.len_token
 
-    def __tokenize__(
-            self,
-            seen_start: int,
-            content: str,
-            stream: Stream,
-    ):
-        """[*wrapper*]"""
-        cursor = 0
-        while cursor < len(content):
-            self.stack.append(t := self.phrase.tokenize(
-                seen_start,
-                content[cursor:],
-                stream,
-                self
-            ))
-            cursor += t.len_token
-            seen_start += t.len_token
-
     def __ends__(self, stream: Stream) -> NodeToken | None:
         """[*wrapper*]"""
         return self.phrase.ends(stream)
@@ -347,7 +432,7 @@ class Branch(Token):
     def gen_inner(self) -> Generator[Token, Any, None]:
         """generate inner tokens recursively"""
         for i in self.stack:
-            if isinstance(i, Branch):
+            if isinstance(i, TokenBranch):
                 yield from i.gen_inner()
             else:
                 yield i
@@ -375,11 +460,22 @@ class Phrase:
     """[*interface*] token class"""
     TNodeToken: Type[NodeToken] = NodeToken
     """[*interface*] node-token class"""
-    TBranch: Type[Branch] = Branch
+    TTokenBranch: Type[TokenBranch] = TokenBranch
     """[*interface*] branch class"""
 
+    TTokenizeStream: Type[TokenizeStream] = TokenizeStream
+    """tokenize stream class"""
+
     @overload
-    def __init__(self, *, id: Any, **kwargs):
+    def __init__(
+            self, *,
+            id: Any = ...,
+            TToken: Type[Token] = ...,
+            TNodeToken: Type[NodeToken] = ...,
+            TBranch: Type[TokenBranch] = ...,
+            TTokenizeStream: Type[TokenizeStream] = ...,
+            **kwargs,
+    ):
         ...
 
     @overload
@@ -404,33 +500,78 @@ class Phrase:
             self.id = id(self)
         self.__sub_phrases__ = set()
         self.__suffix_phrases__ = set()
+        if self.__class__.tokenize is Phrase.tokenize:
+            # saves some operations in the parsing process
+            # if tokenize has not been defined
+            self.TTokenizeStream = NullTokenizeStream
 
-    def starts(self, stream: Stream, branch: Branch) -> Branch | Token | None:
-        """[*interface*] returns whether a branch start or a stand-alone token has occurred"""
-        return self.TBranch(0, stream.unparsed, stream, branch, self)
+    def starts(self, stream: Stream, branch: TokenBranch) -> TokenBranch | Token | None:
+        """[*interface*]
+
+        Returns a starting branch or stand-alone token in the unparsed content of the current row in the stream (``stream.unparsed``).
+        `branch` is the parent branch and is for prefix branches NOT ``stream.branch``, which in this context is the source branch for the prefix.
+
+        Configuration example:
+
+        ..code-block::
+
+            stream.unparsed  # "foo*bar"
+
+            try:
+                i = stream.unparsed.index("*")  # 3
+                return self.TTokenBranch(seen_start=i, content="*", stream=stream, branch=branch, phrase=self)
+                # If this token prevails over any other start/end/stand-alone tokens of the parent branch
+                # (determined by the starting point and length of the content), "foo" is added to the parent branch.
+            except ValueError:
+                return None
+
+        """
+
+        return self.TTokenBranch(0, stream.unparsed, stream, branch, self)
 
     def tokenize(
             self,
-            seen_start: int,
-            content: str,
-            stream: Stream,
-            branch: Branch,
-    ) -> Token:
-        """[*interface*] process content of the branch"""
-        return self.TToken(seen_start, content, stream, branch)
+            stream: TokenizeStream,
+    ) -> Type[Token] | Callable[[int, str, Stream, TokenBranch], Type[Token]]:
+        """[*interface*]
+
+        Allows for a dedicated allocation and typing of tokens within a branch.
+
+        When called, the method must advance the passed stream using its ``eat_*`` methods
+        (which define the content of the token).
+        The return value is a factory/token type that will create the token (autonomously).
+        """
+        ...
 
     def ends(self, stream: Stream) -> NodeToken | None:
-        """[*interface*] returns whether a branch end is occurred or not"""
+        """[*interface*]
+
+        Returns a found branch-end-token (``NodeToken``) in the unparsed content of the current row in the stream (``stream.unparsed``).
+
+        Configuration example:
+
+        ..code-block::
+
+            stream.unparsed  # "foo*bar"
+
+            try:
+                i = stream.unparsed.index("*")  # 3
+                return self.TNodeToken(seen_start=i, content="*", stream=stream, branch=stream.branch)
+                # If this token prevails over any other start/end/stand-alone tokens of the parent branch
+                # (determined by the starting point and length of the content), "foo" is added to the parent branch.
+            except ValueError:
+                return None
+        """
         return self.TNodeToken(0, "", stream, stream.branch)
 
-    def atStart(self, stream: Stream, branch: Branch):
+    def atStart(self, stream: Stream, branch: TokenBranch):
         """[*interface*] additional callback when a branch start is occurred and accepted"""
         ...
 
-    def atEnd(self, stream: Stream, branch: Branch):
+    def atEnd(self, stream: Stream, branch: TokenBranch):
         """[*interface*] additional callback when a branch end is occurred and accepted"""
         ...
-    
+
     __sub_phrases__: set[Phrase]
     __suffix_phrases__: set[Phrase]
 
@@ -470,6 +611,11 @@ class Phrase:
 
         return self
 
+    def add_self(self) -> Self:
+        """Add the phrase to its own sub-phrases for recursive parsing."""
+        self.__sub_phrases__.add(self)
+        return self
+
     @overload
     def add_suffix_phrases(self, node: Phrase | Iterable[Phrase], *nodes: Phrase | Iterable[Phrase]) -> Self:
         ...
@@ -483,9 +629,68 @@ class Phrase:
         self.__suffix_phrases__.update(nodes)
         return self
 
-    def add_self(self) -> Self:
-        """Add the phrase to its own sub-phrases for recursive parsing."""
-        self.__sub_phrases__.add(self)
+    def add_self_suffix(self) -> Self:
+        """Add the phrase to its own suffix-phrases for chained parsing."""
+        self.__suffix_phrases__.add(self)
+        return self
+
+    @overload
+    def rm_phrases(self, node: Phrase | Iterable[Phrase], *nodes: Phrase | Iterable[Phrase], mutual: bool = False) -> Self:
+        ...
+
+    @overload
+    def rm_phrases(self, node: Phrase | Iterable[Phrase], *nodes: Phrase | Iterable[Phrase], mutual: bool = False) -> Self:
+        ...
+
+    def rm_phrases(self, *nodes: Phrase | Iterable[Phrase], mutual: bool = False) -> Self:
+        """Remove one or more phrases to the current phrase. This method can unlink
+        phrases either unidirectionally or bidirectionally based on the `mutual` parameter.
+        """
+        if mutual:
+            def _i():
+                nonlocal node
+                if isinstance(node, Phrase):
+                    self.__sub_phrases__.discard(node)
+                    node.__sub_phrases__.discard(self)
+                else:
+                    for _node in node:
+                        self.__sub_phrases__.discard(_node)
+                        _node.__sub_phrases__.discard(self)
+        else:
+            def _i():
+                nonlocal node
+                if isinstance(node, Phrase):
+                    self.__sub_phrases__.discard(node)
+                else:
+                    for _node in node:
+                        self.__sub_phrases__.discard(_node)
+
+        for node in nodes:
+            _i()
+
+        return self
+
+    def rm_self(self) -> Self:
+        """Remove the phrase from its own sub-phrases."""
+        self.__sub_phrases__.discard(self)
+        return self
+
+    @overload
+    def rm_suffix_phrases(self, node: Phrase | Iterable[Phrase], *nodes: Phrase | Iterable[Phrase]) -> Self:
+        ...
+
+    @overload
+    def rm_suffix_phrases(self, node: Phrase | Iterable[Phrase], *nodes: Phrase | Iterable[Phrase]) -> Self:
+        ...
+
+    def rm_suffix_phrases(self, *nodes: Phrase | Iterable[Phrase]) -> Self:
+        """Remove one or more suffix phrases from the current phrase."""
+        self.__suffix_phrases__ -= set(nodes)
+        return self
+
+    def rm_self_suffix(self) -> Self:
+        """Remove the phrase from its own suffix-phrases."""
+        self.__suffix_phrases__.discard(self)
         return self
 
     def __repr__(self) -> str:
@@ -500,7 +705,7 @@ class RootNodeToken(NodeToken):
     xml_label = "RN"
 
 
-class RootBranch(Branch):
+class RootTokenBranch(TokenBranch):
     xml_label = "RB"
 
     @property
@@ -510,19 +715,19 @@ class RootBranch(Branch):
     def __ends__(self, stream: Stream) -> NodeToken | None:
         return None
 
-    def __lt__(self, other: Branch) -> bool:
+    def __lt__(self, other: TokenBranch) -> bool:
         pass
 
     def __init__(self, root_phrase: RootPhrase):
         self.phrase = root_phrase
-        Branch.__init__(self, 0, "", root_phrase.stream, self, root_phrase)
+        TokenBranch.__init__(self, 0, "", root_phrase.stream, self, root_phrase)
 
     def __drop_after__(self, token: Token):
         self.stack = self.stack[:self.stack.index(token) + 1]
 
 
 class RootPhrase(Phrase):
-    TRootBranch: Type[RootBranch] = RootBranch
+    TRootBranch: Type[RootTokenBranch] = RootTokenBranch
     """[*interface*] root-branch class"""
     TNodeToken: Type[RootNodeToken] = RootNodeToken
     """[*interface*] root-node-token class"""
@@ -531,7 +736,7 @@ class RootPhrase(Phrase):
     TStream: Type[Stream] = Stream
     """[*interface*] stream class"""
 
-    branch: RootBranch
+    branch: RootTokenBranch
     stream: Stream
 
     def __init__(self, **kwargs):
@@ -541,7 +746,7 @@ class RootPhrase(Phrase):
     def starts(self, *_, **__) -> None:
         raise RuntimeError
 
-    def parse_rows(self, rows: list[str]) -> RootBranch:
+    def parse_rows(self, rows: list[str]) -> RootTokenBranch:
         """parse rows
 
         **Line breaks must be explicitly defined in rows! Otherwise, they will not be recognized during the parsing process.**
@@ -566,6 +771,6 @@ class RootPhrase(Phrase):
             en.__atEnd__(self.stream)
             return self.branch
 
-    def parse_string(self, string: str) -> RootBranch:
+    def parse_string(self, string: str) -> RootTokenBranch:
         """parse string"""
         return self.parse_rows(string.splitlines(keepends=True))

@@ -1,12 +1,12 @@
-from .baseobjects import RootPhrase, RootBranch, RootToken, RootNodeToken, Branch, Token, NodeToken
+from .baseobjects import RootPhrase, RootTokenBranch, RootToken, RootNodeToken, TokenBranch, Token, NodeToken
 
 
-def pretty_xml_result(branch: Branch | RootBranch) -> str:
+def pretty_xml_result(branch: TokenBranch | RootTokenBranch) -> str:
     import xml.dom.minidom
     return xml.dom.minidom.parseString(repr(branch)).toprettyxml()
 
 
-def html_on_server(branch: Branch | RootBranch, linear_layout=False):
+def html_on_server(branch: TokenBranch | RootTokenBranch, linear_layout=False):
     import dash_dangerously_set_inner_html
     from dash import Dash, html
 

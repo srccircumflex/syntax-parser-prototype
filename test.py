@@ -19,10 +19,10 @@ class SimpleRegexPhrase(Phrase):
         self.start_pattern = start_pattern
         self.stop_pattern = stop_pattern
 
-    def starts(self, stream: Stream, branch: Branch) -> Branch | Token | None:
+    def starts(self, stream: Stream, branch: TokenBranch) -> TokenBranch | Token | None:
         if m := self.start_pattern.search(stream.unparsed):
             if self.stop_pattern:
-                return Branch(m.start(), m.group(), stream, branch, self)
+                return TokenBranch(m.start(), m.group(), stream, branch, self)
             else:
                 return Token(m.start(), m.group(), stream, branch)
         else:

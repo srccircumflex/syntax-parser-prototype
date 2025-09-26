@@ -33,7 +33,7 @@ Parsing
 =======
 
 The top-level object ``RootPhrase`` provides the entry points for the parsing process.
-The result will be a ``RootBranch``.
+The result will be a ``RootTokenBranch``.
 
 Visualisation
 =============
