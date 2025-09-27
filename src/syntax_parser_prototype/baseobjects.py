@@ -401,24 +401,6 @@ class TokenBranch(Token):
         self.stack = [self.phrase.TNodeToken(self.seen_start, content, stream, branch=self)]
 
     @property
-    def content(self) -> str:
-        """content of the token branch"""
-        k = "*content"
-        if k not in self.__dict__:
-            self.__dict__[k] = str().join(t.content for t in self.gen_inner())
-        return self.__dict__[k]
-
-    @content.setter
-    def content(self, _):
-        """*noop"""
-        pass
-
-    @content.deleter
-    def content(self):
-        """*delete content cache"""
-        del self.__dict__["*content"]
-
-    @property
     def last_row_n(self) -> int:
         """row number where the branch ends"""
         return self.end_node.row_n
@@ -459,6 +441,10 @@ class TokenBranch(Token):
                 yield from i.gen_inner()
             else:
                 yield i
+
+    def get_inner_content(self) -> str:
+        """content of the token branch"""
+        return str().join(t.content for t in self.gen_inner())
 
     def __repr__(self):
         return f"<{self.xml_label} phrase={str(self.phrase.id)!r}>{str().join(repr(i) for i in self.stack)}</{self.xml_label}>"
