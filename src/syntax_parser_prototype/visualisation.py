@@ -1,27 +1,28 @@
-from .baseobjects import RootPhrase, RootTokenBranch, RootToken, RootNodeToken, TokenBranch, Token, NodeToken
+from . import EndToken
+from .baseobjects import MainPhrase, EOFToken, DefaultToken, EOFToken, NodeToken, Token, NodeToken
 
 
-def pretty_xml_result(branch: TokenBranch | RootTokenBranch) -> str:
+def pretty_xml_result(branch: NodeToken | EOFToken) -> str:
     import xml.dom.minidom
     return xml.dom.minidom.parseString(repr(branch)).toprettyxml()
 
 
-def html_on_server(branch: TokenBranch | RootTokenBranch, linear_layout=False):
+def html_on_server(branch: NodeToken | EOFToken, linear_layout=False):
     import dash_dangerously_set_inner_html
     from dash import Dash, html
 
     _html = f"""\
     <style>
-    .{RootNodeToken.xml_label} {{color: red;}}
+    .{EOFToken.xml_label} {{color: red;}}
     .{NodeToken.xml_label} {{color: blue;}}
-    .{RootToken.xml_label} {{color: orange;}}
+    .{DefaultToken.xml_label} {{color: orange;}}
     .{Token.xml_label} {{color: black;}}
     </style>
     """
 
     if linear_layout:
         _html += "<pre>"
-        for token in branch.gen_inner():
+        for token in branch.gen_branch():
             data_id = ""
             if isinstance(token, NodeToken):
                 data_id = token.branch.phrase.id
@@ -30,14 +31,13 @@ def html_on_server(branch: TokenBranch | RootTokenBranch, linear_layout=False):
 
     else:
         _html += "<pre>"
-        for token in branch.gen_inner():
+        for token in branch.gen_branch():
             data_id = ""
             if isinstance(token, NodeToken):
                 data_id = token.branch.phrase.id
-                if token.is_start_node:
-                    _html += f"<span data-id={str(data_id)!r} class={token.xml_label!r}>{token.content}"
-                else:
-                    _html += f"{token.content}</span>"
+                _html += f"<span data-id={str(data_id)!r} class={token.xml_label!r}>{token.content}"
+            elif isinstance(token, EndToken):
+                _html += f"{token.content}</span>"
             else:
                 _html += f"<span data-id={str(data_id)!r} class={token.xml_label!r}>{token.content}</span>"
         _html += "</pre>"
@@ -50,7 +50,7 @@ def html_on_server(branch: TokenBranch | RootTokenBranch, linear_layout=False):
     app.run(debug=True)
 
 
-def start_structure_graph_app(root: RootPhrase):
+def start_structure_graph_app(root: MainPhrase):
     from dash import Dash, html
     import dash_cytoscape as cyto
 

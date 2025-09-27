@@ -19,10 +19,10 @@ class SimpleRegexPhrase(Phrase):
         self.start_pattern = start_pattern
         self.stop_pattern = stop_pattern
 
-    def starts(self, stream: Stream, branch: TokenBranch) -> TokenBranch | Token | None:
+    def starts(self, stream: Stream, branch: NodeToken) -> NodeToken | Token | None:
         if m := self.start_pattern.search(stream.unparsed):
             if self.stop_pattern:
-                return TokenBranch(m.start(), m.group(), stream, branch, self)
+                return NodeToken(m.start(), m.group(), stream, branch, self)
             else:
                 return Token(m.start(), m.group(), stream, branch)
         else:
@@ -35,7 +35,7 @@ class SimpleRegexPhrase(Phrase):
             return None
 
 
-root = RootPhrase()
+root = MainPhrase()
 
 _bracket = SimpleRegexPhrase(compile('\\('), compile('\\)'), id="bracket").add_self()
 _funcall = SimpleRegexPhrase(compile('\\w+\\s*\\('), compile('\\)'), id="function")
