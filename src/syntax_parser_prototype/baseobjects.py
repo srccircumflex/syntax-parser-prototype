@@ -327,6 +327,22 @@ class Token:
             return self.node[i]
         else:
             return self.node.end
+            
+    def gen_thereafter(self):
+        yield from self.node.gen_inner_from_index(self.inner_index + 1)
+        yield self.node.end
+        _node = self.node
+        for node in self.node.node.gen_path():
+            yield from node.gen_inner_from_index(_node.inner_index + 1)
+            yield node.end
+            _node = node
+            .
+            
+    def replace_content(self, content: str, reindex: bool = True):
+        if reindex:
+            diff = len(content) - self.len_token
+            .
+        self.content = content
 
     def __lt__(self, other: Token) -> bool:
         """used to determine the priority of tokens
@@ -487,13 +503,22 @@ class NodeToken(Token):
 
     def gen_inner(self) -> Generator[NodeToken | EndToken | OpenEndToken | Token, Any, None]:
         """generate inner tokens recursively"""
-        for i in self.inner:
-            if isinstance(i, NodeToken):
-                yield i
-                yield from i.gen_inner()
-                yield i.end
+        for t in self.inner:
+            if isinstance(t, NodeToken):
+                yield t
+                yield from t.gen_inner()
+                yield t.end
             else:
-                yield i
+                yield t
+                
+    def gen_inner_from_index(self, i: int):
+        for t in self.inner[i:]:
+            if isinstance(i, NodeToken):
+                yield t
+                yield from t.gen_inner()
+                yield t.end
+            else:
+                yield t
 
     def gen_branch(self) -> Generator[NodeToken | EndToken | OpenEndToken | Token, Any, None]:
         """generate inner tokens recursively with this and this end"""
