@@ -309,13 +309,24 @@ class Token:
     def len_token(self):
         """length of the token-content"""
         return len(self.content)
+        
+    @property
+    def inner_index(self):
+        return self.node.inner.index(self)
     
     @property
     def previous(self):
-        if i := self.node.inner.index(self):
+        if i := self.inner_index:
             return self.node[i-1]
         else:
             return self.node
+            
+    @property
+    def next(self):
+        if (i := self.inner_index + 1) < len(self.node.inner):
+            return self.node[i]
+        else:
+            return self.node.end
 
     def __lt__(self, other: Token) -> bool:
         """used to determine the priority of tokens
