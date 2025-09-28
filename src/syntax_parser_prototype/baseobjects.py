@@ -352,6 +352,20 @@ class EndToken(Token):
     """Type of tokens (`Token`) at the end of a branch.
     """
     xml_label = "E"
+    
+    @property
+    def previous(self):
+        if self.node.inner:
+            return self.node[-1]
+        else:
+            return self.node
+            
+    @property
+    def next(self):
+        if (i := self.node.inner_index + 1) < len(self.node.node.inner):
+            return self.node.node[i]
+        else:
+            return self.node.node.end
         
     def __atEnd__(self, stream: Stream):
         """[*wrapper*]"""
@@ -427,6 +441,10 @@ class NodeToken(Token):
     @property
     def root(self) -> RootNodeToken:
         return self.node.root
+        
+    def gen_path(self):
+        yield from self.node.gen_path()
+        yield self
 
     @property
     def len_inner(self):
@@ -748,6 +766,9 @@ class RootNodeToken(NodeToken):
     @property
     def root(self) -> Self:
         return self
+        
+    def gen_path(self):
+        yield self
 
     def __ends__(self, stream: Stream) -> NodeToken | None:
         return None
