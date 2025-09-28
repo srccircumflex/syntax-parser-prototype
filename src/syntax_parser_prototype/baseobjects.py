@@ -377,6 +377,17 @@ class OpenEndToken(Token):
     xml_label = "O"
     
     @property
+    def previous(self):
+        if self.node.inner:
+            return self.node[-1]
+        else:
+            return self.node
+            
+    @property
+    def next(self):
+        raise EOFError
+    
+    @property
     def last_token(self):
         if self.node.inner:
             return self.node[-1]
@@ -443,8 +454,8 @@ class NodeToken(Token):
         return self.node.root
         
     def gen_path(self):
-        yield from self.node.gen_path()
         yield self
+        yield from self.node.gen_path()
 
     @property
     def len_inner(self):
@@ -455,6 +466,20 @@ class NodeToken(Token):
     def len_branch(self):
         """length of the branch content"""
         return self.len_token + self.len_inner + self.end.len_token
+    
+    @property
+    def previous(self):
+        if (i := self.inner_index):
+            return self.node[i-1]
+        else:
+            return self.node
+            
+    @property
+    def next(self):
+        if self.inner:
+            return self[0]
+        else:
+            return self.end
 
     def __ends__(self, stream: Stream) -> EndToken | None:
         """[*wrapper*]"""
@@ -753,6 +778,10 @@ class DefaultToken(Token):
 
 class EOFToken(EndToken):
     xml_label = "EOF"
+            
+    @property
+    def next(self):
+        raise EOFError
 
 
 class RootNodeToken(NodeToken):
