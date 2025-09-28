@@ -539,6 +539,8 @@ class Phrase:
 
     TTokenizeStream: Type[TokenizeStream] = TokenizeStream
     """tokenize stream class"""
+    TNullTokenizeStream: Type[NullTokenizeStream] = NullTokenizeStream
+    """null-tokenize stream class"""
 
     @overload
     def __init__(
@@ -549,6 +551,7 @@ class Phrase:
             TEndToken: Type[EndToken] = ...,
             TOpenEndToken: Type[OpenEndToken] = ...,
             TTokenizeStream: Type[TokenizeStream] = ...,
+            TNullTokenizeStream: Type[NullTokenizeStream] = ...,
             **kwargs,
     ):
         ...
@@ -578,7 +581,7 @@ class Phrase:
         if self.__class__.tokenize is Phrase.tokenize:
             # saves some operations in the parsing process
             # if tokenize has not been defined
-            self.TTokenizeStream = NullTokenizeStream
+            self.TTokenizeStream = self.TNullTokenizeStream
 
     def starts(self, stream: Stream, node: NodeToken) -> NodeToken | Token | None:
         """[*interface*]
