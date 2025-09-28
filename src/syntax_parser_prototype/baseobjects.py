@@ -309,6 +309,13 @@ class Token:
     def len_token(self):
         """length of the token-content"""
         return len(self.content)
+    
+    @property
+    def previous(self):
+        if i := self.node.inner.index(self):
+            return self.node[i-1]
+        else:
+            return self.node
 
     def __lt__(self, other: Token) -> bool:
         """used to determine the priority of tokens
@@ -331,7 +338,7 @@ class Token:
 
 
 class EndToken(Token):
-    """Type of tokens (`Token`) at the beginning and end of a node.
+    """Type of tokens (`Token`) at the end of a branch.
     """
     xml_label = "E"
         
@@ -340,13 +347,47 @@ class EndToken(Token):
         self.node.__atEnd__(stream)
 
 
+class OpenEndToken(Token):
+    """initial EndToken"""
+    xml_label = "O"
+    
+    @property
+    def last_token(self):
+        if self.node.inner:
+            return self.node[-1]
+        else:
+            return self.node
+            
+    @property
+    def seen_start(self):
+        return self.last_token.seen_end
+        
+    @property
+    def viewpoint(self):
+        return self.last_token.viewpoint
+        
+    @property
+    def row_n(self):
+        return self.last_token.row_n
+    
+    def __init__(self, node: NodeToken):
+        self.content = ""
+        self.node = node 
+        
+    def __atEnd__(self, stream: Stream):
+        """noop"""
+        pass
+
+
+
+
 class NodeToken(Token):
     xml_label = "N"
 
     phrase: Phrase
 
     inner: list[Token | NodeToken]
-    end: EndToken
+    end: EndToken | OpenEndToken
 
     def __init__(
             self,
@@ -370,15 +411,11 @@ class NodeToken(Token):
         self.phrase = phrase
         Token.__init__(self, seen_start, content, stream, node)
         self.inner = list()
+        self.end = phrase.TOpenEndToken(self)
 
     @property
     def root(self) -> RootNodeToken:
         return self.node.root
-
-    @property
-    def last_row_n(self) -> int:
-        """row number where the node ends"""
-        return self.end.row_n
 
     @property
     def len_inner(self):
@@ -387,14 +424,14 @@ class NodeToken(Token):
 
     @property
     def len_branch(self):
-        """length of the whole inner content"""
+        """length of the branch content"""
         return self.len_token + self.len_inner + self.end.len_token
 
     def __ends__(self, stream: Stream) -> EndToken | None:
         """[*wrapper*]"""
         return self.phrase.ends(stream)
 
-    def gen_inner(self) -> Generator[NodeToken | EndToken | Token, Any, None]:
+    def gen_inner(self) -> Generator[NodeToken | EndToken | OpenEndToken | Token, Any, None]:
         """generate inner tokens recursively"""
         for i in self.inner:
             if isinstance(i, NodeToken):
@@ -404,7 +441,7 @@ class NodeToken(Token):
             else:
                 yield i
 
-    def gen_branch(self) -> Generator[NodeToken | EndToken | Token, Any, None]:
+    def gen_branch(self) -> Generator[NodeToken | EndToken | OpenEndToken | Token, Any, None]:
         """generate node tokens recursively"""
         yield self
         yield from self.gen_inner()
@@ -443,6 +480,8 @@ class Phrase:
     """[*interface*] token class"""
     TEndToken: Type[EndToken] = EndToken
     """[*interface*] end-token class"""
+    TOpenEndToken: Type[OpenEndToken] = OpenEndToken
+    """[*interface*] initial end-token class"""
 
     TTokenizeStream: Type[TokenizeStream] = TokenizeStream
     """tokenize stream class"""
@@ -454,6 +493,7 @@ class Phrase:
             TToken: Type[Token] = ...,
             TNodeToken: Type[NodeToken] = ...,
             TEndToken: Type[EndToken] = ...,
+            TOpenEndToken: Type[OpenEndToken] = ...,
             TTokenizeStream: Type[TokenizeStream] = ...,
             **kwargs,
     ):
@@ -711,12 +751,31 @@ class RootNodeToken(NodeToken):
 class MainPhrase(Phrase):
     TRootNodeToken: Type[RootNodeToken] = RootNodeToken
     """[*interface*] root-node class"""
-    TEndToken: Type[EOFToken] = EOFToken
+    TEOFToken: Type[EOFToken] = EOFToken
     """[*interface*] EOF-token class"""
     TToken: Type[DefaultToken] = DefaultToken
     """[*interface*] default-token class"""
     TStream: Type[Stream] = Stream
     """[*interface*] stream class"""
+
+    @overload
+    def __init__(
+            self, *,
+            id: Any = ...,
+            TToken: Type[DefaultToken] = ...,
+            TRootNodeToken: Type[RootNodeToken] = ...,
+            TEOFToken: Type[EOFToken] = ...,
+            TStream: Type[Stream] = ...,
+            **kwargs,
+    ):
+        ...
+
+    @overload
+    def __init__(self, **kwargs):
+        ...
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
 
     def starts(self, *_, **__) -> None:
         raise RuntimeError
@@ -724,7 +783,8 @@ class MainPhrase(Phrase):
     def parse_rows(self, rows: list[str]) -> RootNodeToken:
         """parse rows
 
-        **Line breaks must be explicitly defined in rows! Otherwise, they will not be recognized during the parsing process.**
+        **Line breaks must be explicitly defined in rows! 
+        Otherwise, they will not be recognized during the parsing process.**
         """
         if not rows:
             raise EOFError
@@ -735,7 +795,7 @@ class MainPhrase(Phrase):
             while True:
                 stream()
         except EOFError:
-            root.end = self.TEndToken(
+            root.end = self.TEOFToken(
                 root[-1].seen_end,
                 "",
                 stream,
