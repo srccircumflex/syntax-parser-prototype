@@ -453,7 +453,7 @@ class NodeToken(Token):
                 yield i
 
     def gen_branch(self) -> Generator[NodeToken | EndToken | OpenEndToken | Token, Any, None]:
-        """generate node tokens recursively"""
+        """generate inner tokens recursively with this and this end"""
         yield self
         yield from self.gen_inner()
         yield self.end
