@@ -1,5 +1,4 @@
-from . import EndToken
-from .baseobjects import MainPhrase, EOFToken, DefaultToken, EOFToken, NodeToken, Token, NodeToken
+from ..syntax_parser_prototype import *
 
 
 def pretty_xml_result(branch: NodeToken | EOFToken) -> str:
@@ -7,47 +6,55 @@ def pretty_xml_result(branch: NodeToken | EOFToken) -> str:
     return xml.dom.minidom.parseString(repr(branch)).toprettyxml()
 
 
-def html_on_server(branch: NodeToken | EOFToken, linear_layout=False):
-    import dash_dangerously_set_inner_html
-    from dash import Dash, html
-
-    _html = f"""\
-    <style>
-    .{EOFToken.xml_label} {{color: red;}}
-    .{NodeToken.xml_label} {{color: blue;}}
-    .{DefaultToken.xml_label} {{color: orange;}}
-    .{Token.xml_label} {{color: black;}}
-    </style>
+class html_on_server:
+    main_css = """\
+    span {color: black; font-weight: normal;}
     """
 
-    if linear_layout:
-        _html += "<pre>"
-        for token in branch.gen_branch():
-            data_id = ""
-            if isinstance(token, NodeToken):
-                data_id = token.branch.phrase.id
-            _html += f"<span data-id={str(data_id)!r} class={token.xml_label!r}>{token.content}</span>"
-        _html += "</pre>"
+    token_css = {
+        NodeToken: 'color: blue; font-weight: bold;',
+        DefaultToken: 'color: red',
+        Token: '',
+    }
 
-    else:
-        _html += "<pre>"
-        for token in branch.gen_branch():
-            data_id = ""
-            if isinstance(token, NodeToken):
-                data_id = token.branch.phrase.id
-                _html += f"<span data-id={str(data_id)!r} class={token.xml_label!r}>{token.content}"
-            elif isinstance(token, EndToken):
-                _html += f"{token.content}</span>"
-            else:
-                _html += f"<span data-id={str(data_id)!r} class={token.xml_label!r}>{token.content}</span>"
-        _html += "</pre>"
+    def __init__(
+            self,
+            branch: NodeToken | EOFToken,
+            linear_layout: bool = False,
+    ):
+        import dash_dangerously_set_inner_html
+        from dash import Dash, html
 
-    app = Dash(__name__)
+        _html = ('<style>' + self.main_css + str().join(f'.{t.xml_label} {{{c}}}' for t, c in self.token_css.items()) + '</style>')
 
-    app.layout = html.Div([
-        dash_dangerously_set_inner_html.DangerouslySetInnerHTML(_html),
-    ])
-    app.run(debug=True)
+        if linear_layout:
+            _html += "<pre>"
+            for token in branch.gen_branch():
+                _id = ""
+                if isinstance(token, NodeToken):
+                    _id = f" id={str(token.phrase.id)!r}"
+                _html += f"<span{_id} class={token.xml_label!r}>{token.content}</span>"
+            _html += "</pre>"
+
+        else:
+            _html += "<pre>"
+            for token in branch.gen_branch():
+                if isinstance(token, NodeToken):
+                    _html += f"<span id={str(token.phrase.id)!r} class={token.xml_label!r}>{token.content}"
+                elif isinstance(token, EndToken):
+                    _html += f"{token.content}</span>"
+                else:
+                    _html += f"<span class={token.xml_label!r}>{token.content}</span>"
+            _html += "</pre>"
+
+        app = Dash(__name__)
+
+        app.layout = html.Div([
+            dash_dangerously_set_inner_html.DangerouslySetInnerHTML(  # type: ignore
+                _html
+            ),
+        ])
+        app.run(debug=True)
 
 
 def start_structure_graph_app(root: MainPhrase):
