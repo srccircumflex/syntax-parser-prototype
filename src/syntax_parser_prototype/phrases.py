@@ -108,6 +108,7 @@ class Phrase:
     def tokenize(
             self,
             stream: TokenizeStream,
+            i: int,
     ) -> Type[Token] | Callable[[int, str, Stream, NodeToken], Type[Token]]:
         """[*interface*]
 
