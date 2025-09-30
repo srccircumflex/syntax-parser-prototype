@@ -172,6 +172,22 @@ class Token:
         self.node.__atStart__(stream)
 
 
+class NodeTokenizeFuture:
+    node: NodeToken
+    ran: int
+    column_start: int
+    
+    def __init__(self, node: NodeToken, content: str):
+        self.node = node
+        self.ran = len(content)
+        
+    def __run__(self, stream: Stream):
+        if self.ran:
+            self.column_start = self.node.viewpoint + self.ran
+            self.node.phrase.TTokenizeStream(stream, self).__run__()
+        del self.node.__tokenize__
+        
+
 class NodeToken(Token):
     xml_label = "N"
 
@@ -184,6 +200,7 @@ class NodeToken(Token):
             self,
             seen_start: int,
             content: str,
+            tokenize: str = "",
     ):
         """
         Serves as a container for tokens of the specific phrase and can contain sub- or suffix-branches.
@@ -194,6 +211,7 @@ class NodeToken(Token):
         :param content: content
         """
         Token.__init__(self, seen_start, content)
+        self.__tokenize__ = NodeTokenizeFuture(self, tokenize)
 
     def __ini__(self, node: NodeToken, row_no: int, viewpoint: int, phrase: Phrase) -> Self:  # noqa: signature-differs
         self.phrase = phrase
