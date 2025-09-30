@@ -108,12 +108,14 @@ class TokenizeStream:
 
     def __run__(self):
         node = self.__stream__.node
+        i = 0
         while self.__istart__():
             self.__seen_start__ = self.__cursor__
-            node.inner.append(node.phrase.tokenize(self)(
+            node.inner.append(node.phrase.tokenize(self, i)(
                 seen_start=self.__seen_start__,
                 content=self.__buffer__.getvalue(),
             ).__ini_as_token__(self.__stream__))
+            i += 1
 
 
 class NullTokenizeStream(TokenizeStream):
@@ -237,12 +239,14 @@ class Stream:
             self.node.inner.append(item)
 
             item.__atStart__(self)
+            
+            self.__carry__(item)
 
             if isinstance(item, NodeToken):
                 self.node = item
-
-            self.__carry__(item)
-
+                if item.__tokenize__:
+                    self.node.phrase.TTokenizeStream(self, item.__tokenize__).__run__()
+                    
             if self.viewpoint >= len(self.row):
                 self.__nextrow__()
 
