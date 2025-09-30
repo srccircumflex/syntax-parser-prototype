@@ -4,9 +4,10 @@ from io import StringIO
 from typing import Any, TYPE_CHECKING, Pattern, Callable
 
 if TYPE_CHECKING:
-    from .phrases import Phrase
+    from .phrases import *
+    from .utils import *
 
-from .tokens import Token, EndToken, NodeToken, MaskToken, MaskNodeToken
+from .tokens import *
 
 
 __all__ = (
