@@ -46,7 +46,7 @@ class TokenizeStream:
     def __init__(
             self,
             stream: Stream,
-            delimiter: NodeToken | EndToken | Token | None,
+            delimiter: NodeToken | EndToken | Token | NodeTokenizeFuture | None,
     ):
         """substream for tokenization"""
         self.__stream__ = stream
@@ -244,8 +244,7 @@ class Stream:
 
             if isinstance(item, NodeToken):
                 self.node = item
-                if item.__tokenize__:
-                    self.node.phrase.TTokenizeStream(self, item.__tokenize__).__run__()
+                item.__tokenize__.__run__(self)
                     
             if self.viewpoint >= len(self.row):
                 self.__nextrow__()
