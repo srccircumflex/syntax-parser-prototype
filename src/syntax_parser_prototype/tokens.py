@@ -7,6 +7,8 @@ if TYPE_CHECKING:
     from .phrases import *
     from .streams import *
 
+from .utils import NodeTokenizeFuture, NodeTokenExtras
+
 __all__ = (
     "Token",
     "NodeToken",
@@ -170,22 +172,6 @@ class Token:
     def __atStart__(self, stream: Stream):
         """[*wrapper*]"""
         self.node.__atStart__(stream)
-
-
-class NodeTokenizeFuture:
-    node: NodeToken
-    ran: int
-    column_start: int
-    
-    def __init__(self, node: NodeToken, content: str):
-        self.node = node
-        self.ran = len(content)
-        
-    def __run__(self, stream: Stream):
-        if self.ran:
-            self.column_start = self.node.viewpoint + self.ran
-            self.node.phrase.TTokenizeStream(stream, self).__run__()
-        del self.node.__tokenize__
         
 
 class NodeToken(Token):
@@ -196,11 +182,15 @@ class NodeToken(Token):
     inner: list[Token | NodeToken]
     end: EndToken | OpenEndToken
 
+    extras: NodeTokenExtras
+
     def __init__(
             self,
             seen_start: int,
             content: str,
             tokenize: str = "",
+            goto: Phrase = None,
+            **extras,
     ):
         """
         Serves as a container for tokens of the specific phrase and can contain sub- or suffix-branches.
@@ -211,19 +201,23 @@ class NodeToken(Token):
         :param content: content
         """
         Token.__init__(self, seen_start, content)
-        self.__tokenize__ = NodeTokenizeFuture(self, tokenize)
+        self.__tokenize__ = tokenize
+        self.__goto__ = goto
+        self.extras = extras   # type: ignore
 
     def __ini__(self, node: NodeToken, row_no: int, viewpoint: int, phrase: Phrase) -> Self:  # noqa: signature-differs
         self.phrase = phrase
         self.inner = list()
         self.end = phrase.TOpenEndToken(self)
+        self.__tokenize__ = NodeTokenizeFuture(self, self.__tokenize__)
+        self.extras = NodeTokenExtras(self.extras)  # type: ignore
         return super().__ini__(node, row_no, viewpoint)
 
     def __ini_as_token__(self, stream: Stream) -> Self:
-        raise TypeError("NodeToken cannot be used as a plain Token")
+        raise TypeError(f"{self.__class__} (NodeToken) cannot be used as a plain Token")
 
     def __ini_as_node__(self, stream: Stream, phrase: Phrase) -> Self:
-        return self.__ini__(stream.node, stream.row_no, stream.viewpoint, phrase)
+        return self.__ini__(stream.node, stream.row_no, stream.viewpoint, phrase if self.__goto__ is None else self.__goto__)
 
     def __ini_as_suffix__(self, stream: Stream, phrase: Phrase) -> Self:
         return self.__ini__(stream.node.node, stream.row_no, stream.viewpoint, phrase)
