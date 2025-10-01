@@ -62,11 +62,16 @@ class StringPhrase(Phrase):
         id = "string-content"
 
     def starts(self, stream: Stream) -> NodeToken | Token | MaskToken | MaskNodeToken | None:
-        if m := re.search("([fF]?)('{1,3}|\"{1,3})", stream.unparsed):
-            if m.group(1):
-                return self.NodeToken(m.start(), m.group(), goto=fstring_phrase, quotes=m.group(2))
-            else:
-                return self.NodeToken(m.start(), m.group(), end=m.group(2))
+        if m := re.search("([fFrRbBuU]{0,2})('|'''|\"|\"\"\")", stream.unparsed):
+            if p := m.group(1).lower():
+                if "f" in p:
+                    return self.NodeToken(m.start(), m.group(), goto=fstring_phrase("r" in p), quotes=m.group(2))
+                elif "b" in p:
+                    return self.NodeToken(m.start(), m.group(), goto=bstring_phrase("r" in p), quotes=m.group(2))
+                elif "r" in p:
+                    return self.NodeToken(m.start(), m.group(), goto=rstring_phrase, quotes=m.group(2))
+                else:
+                    return self.NodeToken(m.start(), m.group(), end=m.group(2))
 
     def ends(self, stream: Stream) -> EndToken | None:
         if m := re.search(stream.node.extras.quotes, stream.unparsed):
