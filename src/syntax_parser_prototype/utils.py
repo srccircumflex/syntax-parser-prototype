@@ -30,22 +30,10 @@ class NodeTokenizeFuture:
         del self.node.__tokenize__
 
 
-class UndefinedNodeTokenExtra:
-
-    def __bool__(self):
-        return False
-
-    def __repr__(self):
-        return "<undefined>"
-
-
-UNDEFINED_NODE_TOKEN_EXTRA = UndefinedNodeTokenExtra()
-
-
 class NodeTokenExtras:
 
     def __init__(self, extras: dict):
         self.__dict__.update(extras)
 
     def __getattr__(self, attr):
-        return self.__dict__.get(attr, UNDEFINED_NODE_TOKEN_EXTRA)
+        return suber().__getattr__(attr)
