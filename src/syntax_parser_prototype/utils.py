@@ -8,8 +8,6 @@ if TYPE_CHECKING:
 
 __all__ = (
     "NodeTokenizeFuture",
-    "UndefinedNodeTokenExtra",
-    "UNDEFINED_NODE_TOKEN_EXTRA",
     "NodeTokenExtras",
 )
 
