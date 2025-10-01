@@ -83,11 +83,35 @@ string_phrase = StringPhrase()
 
 class FStringPhrase(StringPhrase):
     id = "fstring"
+    
+    def __call__(self, r: bool):
+        new = super().__call__()
+        if not r:
+            new.add_phrases(bse_phrase)
+        return new
 
 
 fstring_phrase = FStringPhrase()
 
 
+class BStringPhrase(StringPhrase):
+    id = "bstring"
+    
+    def __call__(self, r: bool):
+        new = super().__call__()
+        if not r:
+            new.add_phrases(bse_phrase)
+        return new
+
+
+bstring_phrase = BStringPhrase()
+
+
+class RStringPhrase(StringPhrase):
+    id = "rstring"
+
+
+rstring_phrase = RStringPhrase()
 
 
 
