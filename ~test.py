@@ -11,7 +11,7 @@ from src.syntax_parser_prototype import visualisation
 class BSMaskPhrase(Phrase):
 
     class Token(Token):
-        xml_label = "BSM"
+        id = "BSM"
 
     def __init__(self):
         Phrase.__init__(self)
@@ -121,8 +121,8 @@ result = root.parse_string("""\
 # print(result.__repr__())
 # print(visualisation.pretty_xml_result(result))
 
-visualisation.html_on_server.token_css[BSMaskPhrase.Token] = 'color: orange; font-weight: bold;'
-visualisation.html_on_server(result)
+visualisation.html_server.token_css[BSMaskPhrase.Token] = 'color: orange; font-weight: bold;'
+visualisation.html_server(result)
 # visualisation.start_structure_graph_app(root)
 
 

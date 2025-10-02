@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from io import StringIO
-from typing import Any, TYPE_CHECKING, Pattern, Callable
+from typing import Any, TYPE_CHECKING, Pattern, Callable, Literal
+
+from collections import deque
 
 if TYPE_CHECKING:
     from .phrases import *
@@ -20,13 +22,21 @@ __all__ = (
 
 class AdvanceError(RuntimeError):
 
-    def __init__(self, stream: TokenizeStream):
-        super().__init__(
-            f"{stream.__class__.__name__} stuck without advancing.\n"
-            f"in node: {stream.__stream__.node!r}\n"
-            f"row@{stream.__stream__.row_no}: {stream.__stream__.row!r}\n"
-            f"unparsed@{stream.__stream__.viewpoint + stream.__cursor__}: {stream.unparsed!r}"
-        )
+    def __init__(self, stream: TokenizeStream | Stream):
+        if isinstance(stream, TokenizeStream):
+            super().__init__(
+                f"{stream.__class__.__name__} stuck without advancing.\n"
+                f"in node: {stream.__stream__.node!r}\n"
+                f"row@{stream.__stream__.row_no}: {stream.__stream__.row!r}\n"
+                f"unparsed@{stream.__stream__.viewpoint + stream.__cursor__}: {stream.unparsed!r}"
+            )
+        else:
+            super().__init__(
+                f"{stream.__class__.__name__} stuck without advancing.\n"
+                f"in node: {stream.node!r}\n"
+                f"row@{stream.row_no}: {stream.row!r}\n"
+                f"unparsed@{stream.__pos__}: {stream.unparsed!r}"
+            )
 
 
 class TokenizeStream:
@@ -39,19 +49,22 @@ class TokenizeStream:
     __cursor__: int
     """current cursor position in the designated part"""
 
-    delimiter: NodeToken | EndToken | Token | None
+    delimiter: NodeToken | EndToken | Token | NodeTokenizeFuture | None
     """which delimits the designated content (None for row end)"""
     designated: str
     """the designated content"""
+    context: Literal["n", "i", "e"]
 
     def __init__(
             self,
             stream: Stream,
             delimiter: NodeToken | EndToken | Token | NodeTokenizeFuture | None,
+            context: Literal["n", "i", "e"] = "i",
     ):
         """substream for tokenization"""
         self.__stream__ = stream
         self.delimiter = delimiter
+        self.context = context
         self.__seen_start__ = -1
         self.__cursor__ = 0
         self.designated = self.__stream__.row[
@@ -133,7 +146,7 @@ class NullTokenizeStream(TokenizeStream):
 class Stream:
     row: str
     """current row to parse"""
-    doc: list[str]
+    doc: deque[str]
     """remain unparsed rows"""
     node: NodeToken
     """current active node"""
@@ -142,7 +155,9 @@ class Stream:
     viewpoint: int = 0
     """viewpoint in current row"""
 
-    __pos__: int = 0
+    __pos__: int
+
+    __suffix_phrases__: set[Phrase] | None
 
     def __init__(
             self,
@@ -152,13 +167,15 @@ class Stream:
             row_no: int = 0,
             viewpoint: int = 0,
             __pos__: int = 0,
+            __suffix_phrases__: set[Phrase] | None = None,
     ):
         self.row = row
-        self.doc = doc
+        self.doc = deque(doc)
         self.node = node
         self.row_no = row_no
         self.viewpoint = viewpoint
         self.__pos__ = __pos__
+        self.__suffix_phrases__ = __suffix_phrases__
 
     @property
     def unparsed(self) -> str:
@@ -173,29 +190,33 @@ class Stream:
     def __nextrow__(self):
         """move to the next row"""
         try:
-            self.row = self.doc.pop(0)
+            self.row = self.doc.popleft()
         except IndexError:
             raise EOFError
         else:
             self.row_no += 1
             self.viewpoint = self.__pos__ = 0
 
-    def __carry__(self, item: Token | NodeToken):
+    def __carry__(self, n: int):
+        self.viewpoint = self.__pos__ = self.viewpoint + n
+
+    def __carby__(self, item: Token | NodeToken):
         """carry the viewpoint to the end of a parsed token"""
-        self.viewpoint = self.__pos__ = self.viewpoint + item.seen_end
+        self.__carry__(item.seen_end)
+        if self.viewpoint >= len(self.row):
+            self.__nextrow__()
 
     def __mask_continue__(self):
         active_stop = self.node.__ends__(self)
 
-        if sub_start := self.__search_sub__():
-            item, phrase = sub_start
+        if item := self.__search_sub__():
             if active_stop and active_stop < item:
                 return active_stop
             elif not isinstance(item, MaskToken):
                 return item
             else:
-                item.__ini_as_node__(self, phrase)
-                return self.__mask__(item)
+                item.__ini_as_node__(self)
+                return self.__mask_item__(item)
         elif active_stop:
             return active_stop
         else:
@@ -203,9 +224,7 @@ class Stream:
             self.__nextrow__()
             return self.__mask_continue__()
 
-    def __mask__(self, mask: MaskToken | MaskNodeToken):
-        mask.__atStart__(self)
-
+    def __mask_item__(self, mask: MaskToken | MaskNodeToken):
         self.viewpoint += mask.seen_end
 
         if self.viewpoint >= len(self.row):
@@ -217,19 +236,19 @@ class Stream:
                 self.node.phrase.TTokenizeStream(self, None).__run__()
                 self.__nextrow__()
             e.__ini_as_token__(self)
-            e.__atEnd__(self)
             self.viewpoint += e.seen_end
 
         return self.__mask_continue__()
 
     def __masking__(self, mask: MaskToken | MaskNodeToken):
-        end = self.__mask__(mask)
+        end = self.__mask_item__(mask)
         end.viewpoint = self.viewpoint
         self.node.phrase.TTokenizeStream(self, end).__run__()
         self.viewpoint = self.__pos__ = self.viewpoint + end.seen_start
 
-    def __item_start__(self, item: Token | NodeToken):
+    def __sub_item__(self, item: Token | NodeToken):
         """start a node or handle stand-alone-token"""
+        item.__ini_as_node__(self)
         if isinstance(item, MaskToken):
             self.__masking__(item)
         else:
@@ -237,82 +256,69 @@ class Stream:
                 # remain token
                 self.node.phrase.TTokenizeStream(self, item).__run__()
 
-            self.node.inner.append(item)
+            item.__featurize__(self)
 
-            item.__atStart__(self)
-            
-            self.__carry__(item)
-
-            if isinstance(item, NodeToken):
-                self.node = item
-                item.__tokenize__.__run__(self)
-                    
-            if self.viewpoint >= len(self.row):
-                self.__nextrow__()
-
-    def __search_suffix__(self) -> tuple[NodeToken, Phrase] | None:
-        """search for suffix phrase"""
-        suffix_starts = list()
-        for xp in self.node.phrase.__suffix_phrases__:
-            if suffix_node := xp.starts(self):
-                suffix_starts.append((suffix_node, xp))
-        return min(suffix_starts, key=lambda i: i[0]) if suffix_starts else None
-
-    def __item_stop__(self, end: EndToken):
+    def __end_item__(self, end: EndToken):
         """end a node"""
+        end.__ini_as_token__(self)
         if end.seen_start:
             # remain token
             self.node.phrase.TTokenizeStream(self, end).__run__()
 
-        self.node.end = end  # end node
+        end.__featurize__(self)
 
-        end.__atEnd__(self)
+    def __search_suffix__(self) -> NodeToken | None:
+        """search for suffix phrase"""
+        if self.__suffix_phrases__:
+            suffix_starts = list()
+            for xp in self.__suffix_phrases__:
+                if suffix_node := xp.starts(self):
+                    suffix_node.phrase = xp
+                    suffix_starts.append(suffix_node)
+            self.__suffix_phrases__ = None
+            if suffix_starts and (item := min(suffix_starts)).seen_start == 0:
+                return item
+        return None
 
-        self.__carry__(end)
-
-        if self.viewpoint >= len(self.row):
-            self.__nextrow__()
-
-        if suffix_start := self.__search_suffix__():
-            item, phrase = suffix_start
-            item.__ini_as_suffix__(self, phrase)
-            self.__item_start__(item)
-        else:
-            # return to the parent node
-            self.node = self.node.node
-
-    def __search_sub__(self) -> tuple[NodeToken | Token, Phrase] | None:
+    def __search_sub__(self) -> NodeToken | Token | None:
         """search for sub phrase"""
         sub_starts = list()
         for sp in self.node.phrase.__sub_phrases__:
             if start_node := sp.starts(self):
-                sub_starts.append((start_node, sp))
-        return min(sub_starts, key=lambda i: i[0]) if sub_starts else None
+                start_node.phrase = sp
+                sub_starts.append(start_node)
+        return min(sub_starts) if sub_starts else None
 
-    def __i__(self):
+    def __iteration__(self):
         """main iteration"""
-        active_stop = self.node.__ends__(self)
+        end = self.node.__ends__(self)
 
-        if sub_start := self.__search_sub__():
-            item, phrase = sub_start
-            if active_stop and active_stop < item:
-                active_stop.__ini_as_token__(self)
-                self.__item_stop__(active_stop)
-            else:
-                item.__ini_as_node__(self, phrase)
-                self.__item_start__(item)
-        elif active_stop:
-            active_stop.__ini_as_token__(self)
-            self.__item_stop__(active_stop)
+        if isinstance(end, XEndToken):
+            self.__end_item__(end)
         else:
-            self.node.phrase.TTokenizeStream(self, None).__run__()
-            self.__nextrow__()
+            if suffix_item := self.__search_suffix__():
+                self.__sub_item__(suffix_item)
+            elif sub_item := self.__search_sub__():
+                if isinstance(sub_item, XToken):
+                    self.__sub_item__(sub_item)
+                elif end and end.__vs_sub__(sub_item):
+                    self.__end_item__(end)
+                else:
+                    self.__sub_item__(sub_item)
+            elif end:
+                self.__end_item__(end)
+            else:
+                self.node.phrase.TTokenizeStream(self, None).__run__()
+                self.__nextrow__()
 
     def __run__(self):
         """main iteration"""
         try:
             while True:
-                self.__i__()
+                row_no, viewpoint, node = self.row_no, self.viewpoint, self.node
+                self.__iteration__()
+                if not (row_no != self.row_no or viewpoint != self.viewpoint or node is not self.node):
+                    raise AdvanceError(self)
         except EOFError:
             return
 

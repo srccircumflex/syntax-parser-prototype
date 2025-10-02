@@ -1,3 +1,7 @@
+import sys
+
+import dash
+
 from ..syntax_parser_prototype import *
 
 
@@ -6,7 +10,7 @@ def pretty_xml_result(branch: NodeToken | EOFToken) -> str:
     return xml.dom.minidom.parseString(repr(branch)).toprettyxml()
 
 
-class html_on_server:
+class _html_server:
     main_css = """\
     span {color: black; font-weight: normal;}
     """
@@ -17,44 +21,90 @@ class html_on_server:
         Token: '',
     }
 
-    def __init__(
+    clicked_timeout = 0.2
+    clicked = list()
+
+    def __call__(
             self,
             branch: NodeToken | EOFToken,
-            linear_layout: bool = False,
+            at_console: bool = (
+                    type(__builtins__) is dict  # pycharm
+                    or sys.stdout.isatty()  # terminal
+                    or hasattr(sys, 'ps1')  # terminal
+            ),
     ):
-        import dash_dangerously_set_inner_html
         from dash import Dash, html
+        from threading import Thread
+        from time import perf_counter
 
-        _html = ('<style>' + self.main_css + str().join(f'.{t.xml_label} {{{c}}}' for t, c in self.token_css.items()) + '</style>')
-
-        if linear_layout:
-            _html += "<pre>"
-            for token in branch.gen_branch():
-                _id = ""
-                if isinstance(token, NodeToken):
-                    _id = f" id={str(token.phrase.id)!r}"
-                _html += f"<span{_id} class={token.xml_label!r}>{token.content}</span>"
-            _html += "</pre>"
-
-        else:
-            _html += "<pre>"
-            for token in branch.gen_branch():
-                if isinstance(token, NodeToken):
-                    _html += f"<span id={str(token.phrase.id)!r} class={token.xml_label!r}>{token.content}"
-                elif isinstance(token, EndToken):
-                    _html += f"{token.content}</span>"
-                else:
-                    _html += f"<span class={token.xml_label!r}>{token.content}</span>"
-            _html += "</pre>"
+        _style = ('<style>' + self.main_css + str().join(f'.{t.id} {{{c}}}' for t, c in self.token_css.items()) + '</style>')
 
         app = Dash(__name__)
 
-        app.layout = html.Div([
-            dash_dangerously_set_inner_html.DangerouslySetInnerHTML(  # type: ignore
-                _html
-            ),
-        ])
-        app.run(debug=True)
+        root = html.Pre(children=[])
+        trace = [root]
+
+        if at_console:
+            t = perf_counter()
+
+            def __cb(token):
+                @app.callback(
+                    dash.Input(s, "n_clicks"),
+                    prevent_initial_call=True,
+                )
+                def cb(_, token=token):
+                    nonlocal t
+                    _t = perf_counter()
+                    if _t - t > self.clicked_timeout:
+                        self.clicked.clear()
+                    self.clicked.append(token)
+                    t = _t
+
+            run = Thread(target=app.run, kwargs=dict(debug=True, use_reloader=False), daemon=True).start
+
+        else:
+
+            def __cb(token):
+                ...
+
+            run = lambda: app.run(debug=True)
+
+        for token in branch.gen_branch():
+            classes = " ".join(i.id for i in reversed(type(token).mro()[:-1]))
+            if isinstance(token, NodeToken):
+                s = html.Span(className=str(token.phrase.id) + " " + classes, children=[token.content])
+                trace[-1].children.append(s)
+                trace.append(s)
+                __cb(token)
+            elif isinstance(token, EndToken):
+                trace[-1].children.append(token.content)
+                trace.pop()
+            else:
+                s = html.Span(className=classes, children=[token.content])
+                trace[-1].children.append(s)
+                __cb(token)
+
+        app.layout = html.Div(children=[root])
+        app.index_string = f'''
+        <!DOCTYPE html>
+        <html>
+            <head>
+                {_style}
+            </head>
+            <body>
+                {{%app_entry%}}
+                <footer>
+                    {{%config%}}
+                    {{%scripts%}}
+                    {{%renderer%}}
+                </footer>
+            </body>
+        </html>
+        '''
+        run()
+
+
+html_server = _html_server()
 
 
 def start_structure_graph_app(root: MainPhrase):

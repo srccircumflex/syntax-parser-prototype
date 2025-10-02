@@ -20,7 +20,7 @@ from .tokens import (
     OpenEndToken,
     DefaultToken,
     EOFToken,
-    RootNodeToken,
+    RootNodeToken, XEndToken,
 )
 
 
@@ -83,6 +83,28 @@ class Phrase:
             # if tokenize has not been defined
             self.TTokenizeStream = self.TNullTokenizeStream
 
+    @overload
+    def __call__(
+            self, *,
+            id: Any = ...,
+            TDefaultToken: Type[Token] = ...,
+            TOpenEndToken: Type[OpenEndToken] = ...,
+            TTokenizeStream: Type[TokenizeStream] = ...,
+            TNullTokenizeStream: Type[NullTokenizeStream] = ...,
+            **kwargs,
+    ):
+        ...
+
+    @overload
+    def __call__(self, **kwargs):
+        ...
+
+    def __call__(self, **kwargs):
+        new = self.__class__(**kwargs)
+        new.__sub_phrases__ = self.__sub_phrases__.copy()
+        new.__suffix_phrases__ = self.__suffix_phrases__.copy()
+        return new
+
     def starts(self, stream: Stream) -> NodeToken | Token | MaskToken | MaskNodeToken | None:
         """[*interface*]
 
@@ -109,7 +131,7 @@ class Phrase:
             self,
             stream: TokenizeStream,
             n: int,
-    ) -> Type[Token] | Callable[[int, str, Stream, NodeToken], Type[Token]]:
+    ) -> Type[Token] | Callable[[int, str], Token]:
         """[*interface*]
 
         Allows for a dedicated allocation and typing of tokens within a node.
@@ -120,7 +142,7 @@ class Phrase:
         """
         ...
 
-    def ends(self, stream: Stream) -> EndToken | None:
+    def ends(self, stream: Stream) -> EndToken | XEndToken | None:
         """[*interface*]
 
         Returns a found node-end-token (``NodeToken``) in the unparsed content of the current row in the stream (``stream.unparsed``).
@@ -139,15 +161,7 @@ class Phrase:
             except ValueError:
                 return None
         """
-        return EndToken(0, "")
-
-    def atStart(self, stream: Stream, node: NodeToken | MaskNodeToken):
-        """[*interface*] additional callback when a node start is occurred and accepted"""
-        ...
-
-    def atEnd(self, stream: Stream, node: NodeToken | MaskNodeToken):
-        """[*interface*] additional callback when a node end is occurred and accepted"""
-        ...
+        return XEndToken()
 
     __sub_phrases__: set[Phrase]
     __suffix_phrases__: set[Phrase]
@@ -331,7 +345,6 @@ class MainPhrase(Phrase):
         )
         stream.__run__()
         root.end = self.TEOFToken(root)
-        root.end.__atEnd__(stream)
         return root
 
     def parse_string(self, string: str) -> RootNodeToken:

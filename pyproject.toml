@@ -25,9 +25,8 @@ dynamic = ["version"]
 
 [project.optional-dependencies]
 visualisation = [
-    "dash<3",
+    "dash",
     "dash-cytoscape",
-    "dash-dangerously-set-inner-html",
 ]
 
 [tool.setuptools.dynamic]
