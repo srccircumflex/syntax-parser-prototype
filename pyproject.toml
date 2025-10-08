@@ -22,12 +22,16 @@ classifiers = [
     "Programming Language :: Python",
 ]
 dynamic = ["version"]
+requires-python = ">= 3.10"
+
+dependencies = [
+    "xpropcache",
+]
 
 [project.optional-dependencies]
-visualisation = [
-    "dash<3",
-    "dash-cytoscape",
-    "dash-dangerously-set-inner-html",
+debug = [
+    "dash",
+    "dash-cytoscape==0.2.0",
 ]
 
 [tool.setuptools.dynamic]

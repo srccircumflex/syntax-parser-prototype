@@ -1,76 +1,103 @@
-from __future__ import annotations
+import unittest
 
-from re import compile, Pattern
-
-from src.syntax_parser_prototype import *
-from src.syntax_parser_prototype import visualisation
+from demos.pysyntax import config, template
 
 
-class SimpleRegexPhrase(Phrase):
+class MainTest(unittest.TestCase):
 
-    def __init__(
-            self,
-            start_pattern: Pattern[str],
-            stop_pattern: Pattern[str] | None = None,
-            id: Any = ""
-    ):
-        Phrase.__init__(self)
-        self.id = id
-        self.start_pattern = start_pattern
-        self.stop_pattern = stop_pattern
+    def setUp(self):
+        self.maxDiff = None
 
-    def starts(self, stream: Stream, branch: TokenBranch) -> TokenBranch | Token | None:
-        if m := self.start_pattern.search(stream.unparsed):
-            if self.stop_pattern:
-                return TokenBranch(m.start(), m.group(), stream, branch, self)
-            else:
-                return Token(m.start(), m.group(), stream, branch)
-        else:
-            return None
+        self.m_config = config
+        self.m_template = template
 
-    def ends(self, stream: Stream) -> NodeToken | None:
-        if m := self.stop_pattern.search(stream.unparsed):
-            return NodeToken(m.start(), m.group(), stream, stream.branch)
-        else:
-            return None
+        with open(self.m_template.__file__) as f:
+            self.original_content = f.read()
+            self.root = self.m_config.main()
+            self.result = self.root.parse_string(self.original_content)
+
+        self.result_content = str().join(i.content for i in self.result.tokenReader.branch)
+
+    def test_parsing(self):
+        self.assertEqual(self.result_content, self.original_content)
+
+    def test_reader(self):
+        self.assertEqual(self.result.tokenReader.branch.content, self.original_content)
+
+        all_tokens_linear = list(self.result.tokenReader.branch)
+        self.assertEqual(all_tokens_linear, [self.result, *self.result.tokenReader.inner, self.result.end])
+
+        self.assertEqual(list(reversed(all_tokens_linear)), list(self.result.tokenReader.branch(reverse=True)))
+        self.assertEqual(all_tokens_linear, [*self.result.end.tokenReader.therebefore, self.result.end])
+
+        def test_beyondreader(anchor):
+            anchor_thereafter_content = str().join(str(i) for i in anchor.tokenReader.thereafter)
+            self.assertEqual(self.original_content[anchor.data_end:], anchor_thereafter_content)
+
+            anchor_therebefore_content = str().join(str(i) for i in anchor.tokenReader.therebefore)
+            self.assertEqual(self.original_content[:anchor.data_start], anchor_therebefore_content)
+            self.assertEqual(anchor_therebefore_content, anchor.tokenReader.therebefore.content)
+
+        anchors = list(self.m_config.DEBUG_ANCHORS.values())
+        for anchor in anchors:
+            test_beyondreader(anchor)
+            test_beyondreader(anchor.node)
+            test_beyondreader(anchor.node.end)
+            test_beyondreader(anchor.next)
+            test_beyondreader(anchor.previous.node)
+            test_beyondreader(anchor.previous.node.end)
+            with self.assertRaises(EOFError):
+                test_beyondreader(anchor.node.root)
+            with self.assertRaises(EOFError):
+                test_beyondreader(anchor.node.root.end)
+
+    def test_content_replace(self):
+        anchors = list(self.m_config.DEBUG_ANCHORS.values())
+        main_content = self.original_content
+
+        def replace_mirror(token, new_content):
+            nonlocal main_content
+            main_content = main_content[:token.data_start] + new_content + main_content[token.data_end:]
+            token.replace_content(new_content)
+
+        def test_new_places():
+            for anchor in anchors:
+                self.assertEqual(main_content[anchor.data_start:anchor.data_end], anchor.content)
+
+        test_new_places()
+
+        new_contents = [
+            "¿new1",
+            "¿" * 20,
+            "",
+            "new4¿",
+            "",
+        ]
+        from secrets import choice
+        from random import shuffle
+
+        for i in range(5):
+            replace_mirror(choice(anchors), choice(new_contents))
+            test_new_places()
+
+        for i in range(5):
+            shuffle(anchors)
+            shuffle(new_contents)
+            for a, n in zip(anchors, new_contents):
+                replace_mirror(a, n)
+
+        test_new_places()
+
+        for i in range(5):
+            shuffle(anchors)
+            shuffle(new_contents)
+            for a, n in zip(anchors, new_contents):
+                for a in (a.node, a.node.end, a.next, a.previous.node, a.previous.node.end):
+                    replace_mirror(a, n)
+
+        test_new_places()
 
 
-root = RootPhrase()
 
-_bracket = SimpleRegexPhrase(compile('\\('), compile('\\)'), id="bracket").add_self()
-_funcall = SimpleRegexPhrase(compile('\\w+\\s*\\('), compile('\\)'), id="function")
-_consoleline = SimpleRegexPhrase(compile('>>>'), compile('$'), id="consoleline").add_phrases(_funcall)
-_variable = SimpleRegexPhrase(compile('\\w+(?!\\s*\\()'), stop_pattern=None, id="variable")
-_operation = SimpleRegexPhrase(compile('[-+*/]'), stop_pattern=None, id="operation")
-_curly_brackets = SimpleRegexPhrase(compile("\\{"), compile("}"), id="curly brackets")
-_string_a = SimpleRegexPhrase(compile("'"), compile("'"), id="string-a").add_phrases(_curly_brackets)
-_string_b = SimpleRegexPhrase(compile('"'), compile('"'), id="string-b").add_phrases(_curly_brackets)
-_angular_brackets = SimpleRegexPhrase(compile("\\["), compile("]"), id="angular brackets")
-_string_b.add_suffix_phrases(_angular_brackets)
-_bracket.add_phrases(_variable, _operation, _string_a, _string_b, _funcall)
-root.add_phrases(_bracket, _variable, _operation, _string_a, _string_b, _consoleline)
-_consoleline.add_phrases(root.__sub_phrases__)
-_consoleline.__sub_phrases__.discard(_consoleline)
-_funcall.add_phrases(root.__sub_phrases__)
-result = root.parse_string("""\
->>> prettyprint('( (a * b / (c + a)) * (b / (c – a) * b) / c ) + a')
-(
-   (
-       a * b / (c + a)
-   ) * (
-       b / (c – a) * b
-   ) / c 
-) + a
-
->>> int("42"[1:3] + "3") + 19
-42
-""")
-
-# print(root.__repr__())
-# print(result.__repr__())
-# print(visualisation.pretty_xml_result(result))
-
-visualisation.html_on_server(result)
-# visualisation.start_structure_graph_app(root)
-
-
+if __name__ == '__main__':
+    unittest.main()

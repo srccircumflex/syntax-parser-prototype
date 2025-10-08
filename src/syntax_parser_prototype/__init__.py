@@ -1,3 +1,5 @@
-__version__ = "2.3"
+__version__ = "3.0a1"
 
-from .baseobjects import *
+from .main.phrase import *
+from .main.streams import *
+from .main.tokens import *
