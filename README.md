@@ -25,7 +25,7 @@ under phrases.
 
 <details>
     <summary>
-        demos/quickstart/main.py (<a href="/demos/quickstart/main.py">source</a>)
+        demos/quickstart/main.py (<a href="https://github.com/srccircumflex/syntax-parser-prototype/blob/master/demos/quickstart/main.py">source</a>)
     </summary>
 
 ```python
@@ -476,7 +476,7 @@ Represents the end of the parsed input, set to `RootNode.end`
 
 ## Visualization Tools
 
-The debug module ([source](/src/syntax_parser_prototype/debug.py)) provides some support for visualization. 
+The debug module ([source](https://github.com/srccircumflex/syntax-parser-prototype/blob/master/src/syntax_parser_prototype/debug.py)) provides some support for visualization. 
 All necessary packages can be installed separately:
 
 ```commandline
