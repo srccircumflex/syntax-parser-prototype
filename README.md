@@ -1,6 +1,6 @@
 # syntax-parser-prototype
 
-<a href="https://pypi.org/project/syntax-parser-prototype/3.0a1.post3/" target="_blank" style="position: absolute;top: 22px; right: 62px;color: #db54d9; z-index:100;">
+<a href="https://pypi.org/project/syntax-parser-prototype/3.0a1.post4/" target="_blank" style="position: absolute;top: 22px; right: 62px;color: #db54d9; z-index:100;">
 <img src="https://pypi.org/static/images/logo-small.8998e9d1.svg" alt="pypi.org/wsqlite3" style="height: 24px;">
 </a>
 
@@ -457,17 +457,17 @@ or remains in the result if none was found until the end.
 Acts as an interface to the last seen token of the phrase for duck typing.
 
 ##### class RootNode(NodeToken)
-Represents the root of the parsed input as and contains all other tokens
+Represents the root of the parsed input and contains all other tokens
 (has no content but is a valid token to represent the result root).
 
 ##### class OToken(Token)
 Represents an inner token for the root phrase when no user-defined phrase is active.
 
 ##### class OEOF(OpenEndToken)
-Represents the non-end of the parsed input, set to `RootNode.end`
-(has no content but is a valid token to be included in the result).
+Represents the non-end of the parsed input, set to `RootNode.end`.
 
-This type is set by default until the `EOF` replaces it (will never be included in the result).
+This type is set by default until the `EOF` replaces it at the end of the process
+(will never be included in the result).
 
 ##### class EOF(EndToken)
 Represents the end of the parsed input, set to `RootNode.end`

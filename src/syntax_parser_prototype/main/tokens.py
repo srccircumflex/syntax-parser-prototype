@@ -590,10 +590,10 @@ class EOF(EndToken):
 
 
 class OEOF(OpenEndToken):
-    """[*internal*] Represents the non-end of the parsed input, set to ``RootNode.end``
-    (has no content but is a valid token to be included in the result).
+    """[*internal*] Represents the non-end of the parsed input, set to ``RootNode.end``.
 
-    This type is set by default until the ``EOF`` replaces it (will never be included in the result).
+    This type is set by default until the ``EOF`` replaces it at the end of the process
+    (will never be included in the result).
     """
 
     id = "OOEF"
@@ -606,7 +606,7 @@ class OEOF(OpenEndToken):
 
 
 class RootNode(NodeToken):
-    """Represents the root of the parsed input as and contains all other tokens
+    """Represents the root of the parsed input and contains all other tokens
     (has no content but is a valid token to represent the result root).
     """
 
