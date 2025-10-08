@@ -1,5 +1,5 @@
-__version__ = "3.0"
+__version__ = "3.0a1"
 
-from .phrases import *
-from .streams import *
-from .tokens import *
+from .main.phrase import *
+from .main.streams import *
+from .main.tokens import *

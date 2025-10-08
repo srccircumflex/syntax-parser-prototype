@@ -167,4 +167,4 @@ cython_debug/
 .test/
 .utils/
 
-/test.py.out
+/test.py.missmatch.py
