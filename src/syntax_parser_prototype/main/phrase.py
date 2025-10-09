@@ -256,8 +256,8 @@ class Phrase:
         returned via ``start`` must be ``0`` and the Token must consume the content.
 
         **Tip**
-            For content before the actual suffix that should not be part of the actual suffix
-            (e.g., superfluous spaces), the `lstrip` of the Token parameter can be defined.
+            For content before the actual suffix that should not be part of the suffix
+            (e.g., superfluous spaces), the extended feature ``LStrip`` can be used.
 
         **Note**
             If ``start`` returns a ``MaskToken``, sub-/suffix-phrases are **NOT** evaluated.

@@ -225,6 +225,10 @@ class ForwardTo(Feat):
     def __run__(self, token: tokens.Token, parser: streams.Parser):
         if item := self.__value__.starts(parser):
             item.phrase = self.__value__
+            if token.__to__ == 0 and item.__to__ == 0:
+                # The source as well as the ForwardTo Token are null tokens that could create an infinite loop.
+                # If the source is an EndToken, the parser would not notice this.
+                raise ForwardToNullTokenError(parser, token, item)
             parser.__sub_item__(item)
 
 

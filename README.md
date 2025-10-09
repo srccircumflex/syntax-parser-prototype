@@ -1,6 +1,6 @@
 # syntax-parser-prototype
 
-<a href="https://pypi.org/project/syntax-parser-prototype/3.0a1.post4/" target="_blank" style="position: absolute;top: 22px; right: 62px;color: #db54d9; z-index:100;">
+<a href="https://pypi.org/project/syntax-parser-prototype/3.0a2/" target="_blank" style="position: absolute;top: 22px; right: 62px;color: #db54d9; z-index:100;">
 <img src="https://pypi.org/static/images/logo-small.8998e9d1.svg" alt="pypi.org/wsqlite3" style="height: 24px;">
 </a>
 
@@ -10,7 +10,7 @@ structure and behavior can be defined flexibly and complexly using derived objec
 **spp** also provides some advanced interfaces and parameterizations to meet complex syntax definition requirements.
 
 ```commandline
-pip install syntax-parser-prototype==3.0a1 --upgrade
+pip install syntax-parser-prototype==3.0a2 --upgrade
 pip install syntax-parser-prototype[debug] --upgrade
 ```
 
@@ -353,8 +353,10 @@ The project talks about token _priority_[^3]:
 have the second-highest priority.
 3. The third-highest priority is given to so-called _null tokens_[^4]. 
     > _Null tokens_ are tokens for which no 
-    content is defined. _null tokens_ that are returned for the position directly at the viewpoint (`at=0`) 
-    are only permitted as `EndTokens`, as otherwise the parser might get stuck in an infinite loop.
+content is defined. _null tokens_ that are returned for the position directly at the viewpoint (`at=0`) 
+are only permitted as `EndTokens`, as otherwise the parser might get stuck in an infinite loop.
+An exception to this is the extended feature configuration with `ForwardTo`, 
+where only one of the tokens has to advance the stream.
 4. Finally, the Token with the longest content has the highest priority.
 
 
@@ -569,6 +571,18 @@ print(debug.pretty_xml(result))
 	<EOF coord="1 38:38"/>
 </R>
 ```
+
+
+## Change Log
+
+### 3.0a2 — security update
+
+- 3.0a2 closes a gap in the protection against infinite loops. 
+> With the configuration of the extended feature `ForwardTo` to an `EndToken`, 
+the parser would not have recognized if it did not advance.
+
+### 3.0a1 — initial pre-release
+- Version 3 differs fundamentally from its predecessors
 
 
 

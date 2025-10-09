@@ -265,7 +265,7 @@ class Parser(Stream):
         if self.viewpoint >= len(self.row):
             self.__nextrow__()
 
-    def __mask_continue__(self):
+    def __mask_continue__(self) -> tokens.T_BASE_TOKENS:
         """search for a mask continuation, otherwise return the found non-mask token"""
         active_stop = self.node.__ends__(self)
 
@@ -278,7 +278,7 @@ class Parser(Stream):
             else:
                 item: tokens.MaskToken | tokens.MaskNodeToken
                 item.__ini_as_node__(self)
-                return self.__mask_item__(item)
+                return self.__adv_mask__(item)
         elif active_stop:
             return active_stop
         else:
@@ -286,7 +286,7 @@ class Parser(Stream):
             self.__nextrow__()
             return self.__mask_continue__()
 
-    def __mask_item__(self, mask: tokens.MaskToken | tokens.MaskNodeToken):
+    def __adv_mask__(self, mask: tokens.MaskToken | tokens.MaskNodeToken) -> tokens.T_BASE_TOKENS:
         """process a mask token"""
 
         if mask.__to__ == 0:
@@ -307,15 +307,17 @@ class Parser(Stream):
 
         return self.__mask_continue__()
 
-    def __masking__(self, mask: tokens.MaskToken | tokens.MaskNodeToken):
+    def __masking__(self, mask: tokens.MaskToken | tokens.MaskNodeToken) -> None:
         """masking entry point"""
-        end = self.__mask_item__(mask)
+        end = self.__adv_mask__(mask)
         end.__viewpoint__ = self.viewpoint
         self.node.phrase.TTokenizeStream(self, end, self.node).__run__()
         self.viewpoint = self.__position__ = self.viewpoint + end.__at__
 
-    def __sub_item__(self, item: tokens.T_START_TOKENS):
-        """start a node or handle stand-alone-token"""
+    def __sub_item__(self, item: tokens.T_START_TOKENS) -> None:
+        """process a node or handle a standalone token
+        - separated to make it possible to accept a null token with ForwardTo
+        """
         item.__ini_as_node__(self)
         if item.__fMASK__:
             item: tokens.MaskToken | tokens.MaskNodeToken
@@ -326,16 +328,24 @@ class Parser(Stream):
                 # remain token
                 self.node.phrase.TTokenizeStream(self, item, self.node).__run__()
             item.__featurize__(self)
-        return item
 
-    def __end_item__(self, end: tokens.EndToken):
+    def __adv_sub__(self, item: tokens.T_START_TOKENS) -> None:
+        """start a node or handle a standalone token from the main iteration
+        - query for null tokens is finally carried out after featurization
+        """
+        row_no = self.row_no
+        viewpoint = self.viewpoint
+        self.__sub_item__(item)
+        if not (row_no != self.row_no or viewpoint != self.viewpoint):
+            raise NullTokenError(self, item)
+
+    def __adv_end__(self, end: tokens.EndToken) -> None:
         """end a phrase"""
         end.__ini_as_token__(self)
         if end.__at__:
             # remain token
             self.node.phrase.TTokenizeStream(self, end, self.node).__run__()
         end.__featurize__(self)
-        return end
 
     def __search_phrase__(self, phrases: set[phrase.Phrase]) -> tokens.T_START_TOKENS | None:
         item: tokens.T_START_TOKENS | None = None
@@ -378,28 +388,27 @@ class Parser(Stream):
         """search for sub phrase"""
         return self.__search_phrase__(self.node.phrase.__sub_phrases__)
 
-    def __iteration__(self) -> tokens.T_BASE_TOKENS | None:
+    def __iteration__(self) -> None:
         """main iteration"""
         end = self.node.__ends__(self)
 
         if end and end.__fINSTANT__:
-            return self.__end_item__(end)
+            self.__adv_end__(end)
         else:
             if suffix_item := self.__search_suffix__():
-                return self.__sub_item__(suffix_item)
+                self.__adv_sub__(suffix_item)
             elif sub_item := self.__search_sub__():
                 if sub_item.__fINSTANT__:
-                    return self.__sub_item__(sub_item)
+                    self.__adv_sub__(sub_item)
                 elif end and end < sub_item:
-                    return self.__end_item__(end)
+                    self.__adv_end__(end)
                 else:
-                    return self.__sub_item__(sub_item)
+                    self.__adv_sub__(sub_item)
             elif end:
-                return self.__end_item__(end)
+                self.__adv_end__(end)
             else:
                 self.node.phrase.TTokenizeStream(self, None, self.node).__run__()
                 self.__nextrow__()
-                return None
 
     def __run__(self) -> None:
         try:
@@ -412,15 +421,6 @@ class Parser(Stream):
             else:
                 self.root.tokenIndex.__at_stale__(self)
             while True:
-                row_no, viewpoint = self.row_no, self.viewpoint
-                token = self.__iteration__()
-                if token and (
-                        token.__fNODE__
-                        or  # stand-alone token
-                        not token.__fEND__
-                ):
-                    # node and stand-alone tokens must advance the stream
-                    if not (row_no != self.row_no or viewpoint != self.viewpoint):
-                        raise NullTokenError(self, token)
+                self.__iteration__()
         except EOFError:
             self.root.tokenIndex.__build__()

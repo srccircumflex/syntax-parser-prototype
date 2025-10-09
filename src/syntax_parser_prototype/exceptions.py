@@ -3,12 +3,13 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from . import tokens, streams
+    from .main import tokens, streams
 
 __all__ = (
     "AdvanceError",
     "TokenizationAdvanceError",
     "NullTokenError",
+    "ForwardToNullTokenError",
     "FeatureError",
 )
 
@@ -55,7 +56,22 @@ class NullTokenError(AdvanceError):
     def __init__(self, stream: streams.Stream, nulltoken: tokens.Token):
         AdvanceError.__init__(
             self,
-            f"{stream.__class__.__name__} encountered an illegal null token: {nulltoken!r}",
+            f"{stream.__class__.__name__} encountered an illegal null token: id={nulltoken.id!r}@{nulltoken.phrase!r}",
+            stream.node,
+            stream.row_no,
+            stream.row,
+            stream.__position__,
+            stream.unparsed,
+        )
+
+
+class ForwardToNullTokenError(AdvanceError):
+    """raised when the stream encounters invalid null tokens in relation to ForwardTo"""
+
+    def __init__(self, stream: streams.Stream, from_nulltoken: tokens.Token, to_nulltoken: tokens.Token):
+        AdvanceError.__init__(
+            self,
+            f"{stream.__class__.__name__} encountered illegal null tokens: id={from_nulltoken.id!r}@{from_nulltoken.phrase!r} -> ForwardTo(id={to_nulltoken.id!r}@{to_nulltoken.phrase!r})",
             stream.node,
             stream.row_no,
             stream.row,
