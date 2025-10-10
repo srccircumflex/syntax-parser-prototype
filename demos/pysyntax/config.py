@@ -37,7 +37,7 @@ class CommentPhrase(Phrase):
         if m := re.search("#(.*$)", stream.unparsed):
             return self.CommentNode(m.start(), m.end(), RTokenize(len(m.group(1))))
 
-    def tokenize(self, stream: TokenizeStream) -> Type[Token] | Callable[[int, str], Token]:
+    def tokenize(self, stream: TokenizeStream) -> Type[Token] | Callable[[int, int], Token]:
         if stream.eat_n(1) == "$":  # $anchor1
             stream.eat_until(re.compile("\\W"))
             return self.DebugAnchor
@@ -194,7 +194,7 @@ class NumberPhrase(Phrase):
     def tokenize(
             self,
             stream: TokenizeStream,
-    ) -> Type[Token] | Callable[[int, str], Token]:
+    ) -> Type[Token] | Callable[[int, int], Token]:
         stream.eat_remain()
         return self.Token
 
@@ -331,7 +331,7 @@ class DecoratorPhrase(Phrase):
             if m := re.search("@(\\w+)", stream.unparsed):
                 return self.NodeToken(m.start(), m.end(), RTokenize(len(m.group(1))))
 
-    def tokenize(self, stream: TokenizeStream) -> Type[Token] | Callable[[int, str], Token]:
+    def tokenize(self, stream: TokenizeStream) -> Type[Token] | Callable[[int, int], Token]:
         if stream.context == "n":
             stream.eat_remain()
             return self.Token

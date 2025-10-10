@@ -1,4 +1,4 @@
-__version__ = "3.0a2"
+__version__ = "3.0a3"
 
 from .main.phrase import *
 from .main.streams import *

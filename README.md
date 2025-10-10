@@ -1,6 +1,6 @@
 # syntax-parser-prototype
 
-<a href="https://pypi.org/project/syntax-parser-prototype/3.0a2/" target="_blank" style="position: absolute;top: 22px; right: 62px;color: #db54d9; z-index:100;">
+<a href="https://pypi.org/project/syntax-parser-prototype/3.0a3/" target="_blank" style="position: absolute;top: 22px; right: 62px;color: #db54d9; z-index:100;">
 <img src="https://pypi.org/static/images/logo-small.8998e9d1.svg" alt="pypi.org/wsqlite3" style="height: 24px;">
 </a>
 
@@ -10,7 +10,7 @@ structure and behavior can be defined flexibly and complexly using derived objec
 **spp** also provides some advanced interfaces and parameterizations to meet complex syntax definition requirements.
 
 ```commandline
-pip install syntax-parser-prototype==3.0a2 --upgrade
+pip install syntax-parser-prototype==3.0a3 --upgrade
 pip install syntax-parser-prototype[debug] --upgrade
 ```
 
@@ -575,9 +575,11 @@ print(debug.pretty_xml(result))
 
 ## Change Log
 
-### 3.0a2 — security update
+### 3.0a3 — fix type hint
+- 3.0a3 fixes a type hint error in `Phrase.tokenize()`
 
-- 3.0a2 closes a gap in the protection against infinite loops. 
+### 3.0a2 — security update
+- 3.0a2 closes a gap in the protection against infinite loops 
 > With the configuration of the extended feature `ForwardTo` to an `EndToken`, 
 the parser would not have recognized if it did not advance.
 

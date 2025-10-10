@@ -101,7 +101,7 @@ class Phrase:
     def tokenize(
             self,
             stream: streams.TokenizeStream,
-    ) -> Type[tokens.Token] | Callable[[int, str], tokens.Token]:
+    ) -> Type[tokens.Token] | Callable[[int, int], tokens.Token]:
         """[*ENTRY*]
 
         Allows for a dedicated allocation and typing of tokens within a node.
@@ -363,7 +363,7 @@ class Root:
     @final
     def ends(*_, **__) -> None: return None
 
-    def tokenize(self, stream: streams.TokenizeStream) -> Type[tokens.OToken] | Callable[[int, str], tokens.OToken]:
+    def tokenize(self, stream: streams.TokenizeStream) -> Type[tokens.OToken] | Callable[[int, int], tokens.OToken]:
         ...
 
     @overload
