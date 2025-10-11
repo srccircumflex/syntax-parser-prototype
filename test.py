@@ -98,6 +98,5 @@ class MainTest(unittest.TestCase):
         test_new_places()
 
 
-
 if __name__ == '__main__':
     unittest.main()

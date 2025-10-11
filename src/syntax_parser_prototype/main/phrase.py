@@ -29,13 +29,13 @@ class Phrase:
 
     id: Any
     """[*ENTRY*] phrase id (memory loc id if not defined in derivatives) (default usage: only for debugging)"""
-    TDefaultToken: Type[tokens.Token] = tokens.Token
+    TDefaultToken: Type[tokens.Token] | Callable[..., tokens.Token] = tokens.Token
     """[*ENTRY*] default token class (default usage: if tokenize is not defined)"""
-    TOpenEndToken: Type[tokens.OpenEndToken] = tokens.OpenEndToken
+    TOpenEndToken: Type[tokens.OpenEndToken] | Callable[..., tokens.OpenEndToken] = tokens.OpenEndToken
     """[*ENTRY*] initial end-token class"""
-    TTokenizeStream: Type[streams.TokenizeStream] = streams.TokenizeStream
+    TTokenizeStream: Type[streams.TokenizeStream] | Callable[..., streams.TokenizeStream] = streams.TokenizeStream
     """[*ENTRY*] tokenize stream class"""
-    TDefaultTokenizeStream: Type[streams.DefaultTokenizeStream] = streams.DefaultTokenizeStream
+    TDefaultTokenizeStream: Type[streams.DefaultTokenizeStream] | Callable[..., streams.DefaultTokenizeStream] = streams.DefaultTokenizeStream
     """[*ENTRY*] non-tokenize stream class (if tokenize is not defined)"""
 
     __sub_phrases__: set[Phrase]
@@ -262,7 +262,12 @@ class Phrase:
         **Note**
             If ``start`` returns a ``MaskToken``, sub-/suffix-phrases are **NOT** evaluated.
         """
-        self.__suffix_phrases__.update(nodes)
+        for node in nodes:
+            if isinstance(node, Phrase):
+                self.__suffix_phrases__.add(node)
+            else:
+                for _node in node:
+                    self.__suffix_phrases__.add(_node)
         return self
 
     def add_suffix_recursion(self) -> Self:
@@ -289,7 +294,12 @@ class Phrase:
 
     def rm_suffixes(self, *nodes: Phrase | Iterable[Phrase]) -> Self:
         """Remove one or more suffix phrases from the current phrase."""
-        self.__suffix_phrases__ -= set(nodes)
+        for node in nodes:
+            if isinstance(node, Phrase):
+                self.__suffix_phrases__.discard(node)
+            else:
+                for _node in node:
+                    self.__suffix_phrases__.discard(_node)
         return self
 
     def rm_suffix_recursion(self) -> Self:
@@ -306,45 +316,24 @@ class Root:
     id: Any
     """[*ENTRY*] phrase id (default usage: only for debugging)"""
 
-    TRootNode: Type[tokens.RootNode] = tokens.RootNode
+    TRootNode: Type[tokens.RootNode] | Callable[..., tokens.RootNode] = tokens.RootNode
     """[*ENTRY*] root-node class"""
-    TDefaultToken: Type[tokens.OToken] = tokens.OToken
+    TDefaultToken: Type[tokens.OToken] | Callable[..., tokens.OToken] = tokens.OToken
     """[*ENTRY*] default lv0-token class (default usage: if tokenize is not defined)"""
-    TEOFToken: Type[tokens.EOF] = tokens.EOF
+    TEOFToken: Type[tokens.EOF] | Callable[..., tokens.EOF] = tokens.EOF
     """[*ENTRY*] EOF-token class"""
-    TOpenEndToken: Type[tokens.OEOF] = tokens.OEOF
+    TOpenEndToken: Type[tokens.OEOF] | Callable[..., tokens.OEOF] = tokens.OEOF
     """[*ENTRY*] initial end-token class"""
-    TTokenizeStream: Type[streams.TokenizeStream] = streams.TokenizeStream
+    TTokenizeStream: Type[streams.TokenizeStream] | Callable[..., streams.TokenizeStream] = streams.TokenizeStream
     """[*ENTRY*] tokenize stream class"""
-    TDefaultTokenizeStream: Type[streams.DefaultTokenizeStream] = streams.DefaultTokenizeStream
+    TDefaultTokenizeStream: Type[streams.DefaultTokenizeStream] | Callable[..., streams.DefaultTokenizeStream] = streams.DefaultTokenizeStream
     """[*ENTRY*] non-tokenize stream class (if tokenize is not defined)"""
-    TParser: Type[streams.Parser] = streams.Parser
+    TParser: Type[streams.Parser] | Callable[..., streams.Parser] = streams.Parser
     """[*ENTRY*] stream class"""
-    TTokenIndex: Type[indices.TokenIndex] = indices.ExtensiveTokenIndex
+    TTokenIndex: Type[indices.TokenIndex] | Callable[..., indices.TokenIndex] = indices.ExtensiveTokenIndex
     """[*ENTRY*] index class"""
 
     __sub_phrases__: set[Phrase]
-
-    @overload
-    def __init__(
-            self,
-            *args,
-            id: Any = ...,
-            TRootNode: Type[tokens.RootNode] = tokens.RootNode,
-            TDefaultToken: Type[tokens.OToken] = tokens.OToken,
-            TEOFToken: Type[tokens.EOF] = tokens.EOF,
-            TOpenEndToken: Type[tokens.OEOF] = tokens.OEOF,
-            TTokenizeStream: Type[streams.TokenizeStream] = streams.TokenizeStream,
-            TDefaultTokenizeStream: Type[streams.DefaultTokenizeStream] = streams.DefaultTokenizeStream,
-            TParser: Type[streams.Parser] = streams.Parser,
-            TTokenIndex: Type[indices.TokenIndex] = indices.ExtensiveTokenIndex,
-            **kwargs
-    ):
-        ...
-
-    @overload
-    def __init__(self, *args, **kwargs):
-        ...
 
     def __init__(self, *args, **kwargs):
         Phrase.__init__(self, *args, **kwargs)  # type: ignore

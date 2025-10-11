@@ -1,14 +1,15 @@
 from __future__ import annotations
 
-from xpropcache import PropCache
+from typing import TYPE_CHECKING, Union, Generic
 
-from typing import TYPE_CHECKING, Union
+from xpropcache import PropCache
 
 if TYPE_CHECKING:
     from typing_extensions import Self
     from . import streams, phrase
     from ..features import indices
 
+from ..typing import *
 from ..features import readers, tokenize
 
 __all__ = (
@@ -31,7 +32,7 @@ __all__ = (
 )
 
 
-class Token:
+class Token(Generic[TV_PHRASE, TV_NODE_TOKEN]):
     """Simple text content token and base type for all other tokens.
 
     Tokens of this type must be returned by ``Phrase.tokenize``
@@ -57,11 +58,11 @@ class Token:
 
     content: str = ''
     """content of the token"""
-    node: NodeToken
+    node: NodeToken[TV_PHRASE, TV_NODE_TOKEN] | TV_NODE_TOKEN
     """source node of the token"""
     row_no: int
     """row number where the token is located (starting from 0)"""
-    phrase: phrase.Phrase | None = None  # set by stream in nodes or stand-alone-tokens
+    phrase: phrase.Phrase | TV_PHRASE | None = None  # set by stream in nodes or stand-alone-tokens
     """source phrase (only set in nodes or stand-alone-tokens)"""
 
     # @formatter:off
@@ -227,7 +228,7 @@ class Token:
         self.atFeaturized()
 
 
-class NodeToken(Token):
+class NodeToken(Token, Generic[TV_PHRASE, TV_NODE_TOKEN]):
     r"""Represents the beginning of a phrase as a token and
     contains subordinate tokens and the end token.
 
@@ -245,7 +246,7 @@ class NodeToken(Token):
 
     id = "N"
     """[*ENTRY*] token id (default usage: only for debugging)"""
-    phrase: phrase.Phrase
+    phrase: phrase.Phrase | TV_PHRASE
     """source phrase"""
     inner: list[Token | NodeToken]
     """tokens of the phrase (excl. this node and the end token, can contain sub- or suffix-branches)"""
@@ -299,7 +300,7 @@ class NodeToken(Token):
         self.extras = extras  # type: ignore
 
     @PropCache.cached_property
-    def root(self) -> RootNode:
+    def root(self) -> RootNode[TV_PHRASE, TV_NODE_TOKEN] | TV_ROOT_NODE:
         return self.node.root
 
     @property
@@ -411,6 +412,10 @@ class OpenEndToken(Token):
 
     @property
     def __at__(self) -> int:
+        return self.last_token.__to__
+
+    @property
+    def __to__(self) -> int:
         return self.last_token.__to__
 
     @property
@@ -605,14 +610,14 @@ class OEOF(OpenEndToken):
         raise EOFError
 
 
-class RootNode(NodeToken):
+class RootNode(NodeToken, Generic[TV_PHRASE, TV_NODE_TOKEN]):
     """Represents the root of the parsed input and contains all other tokens
     (has no content but is a valid token to represent the result root).
     """
 
     id = "R"
     """[*ENTRY*] token id (default usage: only for debugging)"""
-    phrase: phrase.Root
+    phrase: phrase.Root | TV_PHRASE
     """Main"""
 
     inner: list[OToken | NodeToken]

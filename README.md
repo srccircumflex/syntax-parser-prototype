@@ -1,6 +1,6 @@
 # syntax-parser-prototype
 
-<a href="https://pypi.org/project/syntax-parser-prototype/3.0a3/" target="_blank" style="position: absolute;top: 22px; right: 62px;color: #db54d9; z-index:100;">
+<a href="https://pypi.org/project/syntax-parser-prototype/" target="_blank" style="position: absolute;top: 22px; right: 62px;color: #db54d9; z-index:100;">
 <img src="https://pypi.org/static/images/logo-small.8998e9d1.svg" alt="pypi.org/wsqlite3" style="height: 24px;">
 </a>
 
@@ -10,7 +10,7 @@ structure and behavior can be defined flexibly and complexly using derived objec
 **spp** also provides some advanced interfaces and parameterizations to meet complex syntax definition requirements.
 
 ```commandline
-pip install syntax-parser-prototype==3.0a3 --upgrade
+pip install syntax-parser-prototype --upgrade
 pip install syntax-parser-prototype[debug] --upgrade
 ```
 
@@ -574,6 +574,25 @@ print(debug.pretty_xml(result))
 
 
 ## Change Log
+
+### 3.0 — major release
+- added `node` shortcut in `TokenizeStream`
+- added less restrictive type hints in `Phrase` and `Root` generics
+- added support for `Phrase` and `Node` type hints for `Stream`'s and `Token`'s
+via `Generic[TV_PHRASE, TV_NODE_TOKEN]` to ensure stronger type binding between 
+phrase implementations and token/node types
+
+  (Application example in a `Phrase.starts` method definition:
+    ```python
+    def starts(self, stream: streams.Stream[MyPhrase, MyNode1 | MyNode2]):
+        stream.node.my_attribute
+        stream.node.phrase.my_attribute
+        ...
+    ```
+
+- fixed `OpenEndToken` interface
+- added/fixed unpacking in `Phrase.add_suffixes()`
+
 
 ### 3.0a3 — fix type hint
 - 3.0a3 fixes a type hint error in `Phrase.tokenize()`

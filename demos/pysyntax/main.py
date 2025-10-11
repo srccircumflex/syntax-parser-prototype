@@ -33,6 +33,6 @@ if __name__ == "__main__":
 
     # print(root.__repr__())
     # print(result.__repr__())
-    # print(debug.pretty_xml_result(result))
+    # print(debug.pretty_xml(result))
     debug.html_server(result)
-    # debug.start_structure_graph_app(main)
+    # debug.structure_graph_app(main)

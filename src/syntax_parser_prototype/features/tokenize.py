@@ -31,7 +31,6 @@ Features can be linked to form a selective process, but a basic logic is followe
 """
 from __future__ import annotations
 
-from email.charset import BASE64
 from typing import TYPE_CHECKING, Union
 
 if TYPE_CHECKING:

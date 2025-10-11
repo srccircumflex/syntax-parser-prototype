@@ -229,7 +229,7 @@ class _html_server:
             run = lambda: app.run(debug=True)
 
         for token in branch.tokenReader.branch:
-            classes = " ".join(i.id for i in reversed(type(token).mro()[:-1]))  # -1: object
+            classes = " ".join(t.id for t in reversed(type(token).mro()[:-1]) if issubclass(t, (tokens.Token, phrase.Phrase, phrase.Root)))  # -1: object
             if isinstance(token, tokens.NodeToken):
                 s = html.Span(className=str(token.phrase.id) + " " + classes, children=[token.content])
                 trace[-1].children.append(s)
