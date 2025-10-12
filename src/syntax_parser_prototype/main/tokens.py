@@ -22,6 +22,8 @@ __all__ = (
     "InstantToken",
     "InstantEndToken",
     "InstantNodeToken",
+    "DefaultEndToken",
+    "WrapNodeToken",
     "OToken",
     "EOF",
     "OEOF",
@@ -212,15 +214,15 @@ class Token(Generic[TV_PHRASE, TV_NODE_TOKEN]):
         """[*internal*] late bindings for plain tokens"""
         return self.__ini__(stream.node, stream.row_no, stream.viewpoint)
 
+    def __ini_as_node__(self, stream: streams.Stream) -> Self:
+        """[*internal*] late bindings for node tokens"""
+        return self.__ini__(stream.node, stream.row_no, stream.viewpoint)
+
     def __ini_from_tokenize__(self, content: str, stream: streams.TokenizeStream) -> Self:
         """[*internal*] late bindings for plain tokens"""
         self.content = content
         self.__to__ = self.__at__ + len(content)
         return self.__ini_as_token__(stream.__stream__)
-
-    def __ini_as_node__(self, stream: streams.Stream) -> Self:
-        """[*internal*] late bindings for node tokens"""
-        return self.__ini__(stream.node, stream.row_no, stream.viewpoint)
 
     def __featurize__(self, p: streams.Parser) -> None:
         """[*internal*] processes token and configuration-related actions on the stream and result"""
@@ -563,6 +565,69 @@ class InstantNodeToken(NodeToken, InstantToken):
         super().__init__(at, to, features, **extras)
 
 
+class DefaultEndToken(EndToken):
+    """Special end token type that can be returned by ``Phrase.ends``.
+
+    This end token closes the associated phrase if no start of a subphrase was found.
+
+    :param at: starting point of the token relative to ``stream.viewpoint``, in other words, in ``stream.unparsed``
+        -- **including the part that is processed by a custom feature configuration**.
+    :param to: ending point of the token relative to ``stream.viewpoint``, in other words, in ``stream.unparsed``
+        -- **including the part that is processed by a custom feature configuration**.
+    :param features: Features are special function parameters that can be passed to a node,
+        end or standalone token that significantly influence the parsing process (see the module documentation of ``syntax_parser_prototype.features`` for more information).
+    """
+
+    id = "e"
+    """[*ENTRY*] token id (default usage: only for debugging)"""
+
+    def __init__(self, at: int, to: int, features: tokenize.T_STD_FEATURES = tokenize.BASE_E_FEAT):
+        super().__init__(at, to, features)
+
+    def __lt__(self, other: Token) -> bool:
+        return False
+
+
+class WrapNodeToken(NodeToken, Generic[TV_PHRASE, TV_NODE_TOKEN]):
+    """Special node token that wraps another node token that can be returned by ``Phrase.starts``.
+
+    Functions as an interface to the wrapped node regarding token priority.
+    The parent node of the wrapped one will be this.
+    This node does not contain any content in the result, but is a valid node token.
+
+    :param node: the node token to wrap
+    :param phrase: the phrase of the wrapped node
+    """
+
+    id = "W"
+    """[*ENTRY*] token id (default usage: only for debugging)"""
+    content = ""
+    """content of the wrap is always empty"""
+
+    __wrapped__: NodeToken
+    """wrapped node token"""
+
+    def __init__(
+            self,
+            node: NodeToken[TV_PHRASE, TV_NODE_TOKEN] | TV_NODE_TOKEN,
+            phrase: phrase.Phrase | TV_PHRASE,
+            **extras
+    ):
+        node.phrase = phrase
+        super().__init__(node.__at__, node.__to__, **extras)
+        self.__wrapped__ = node
+
+    def __ini__(self, node: NodeToken, row_no: int, viewpoint: int) -> Self:
+        super().__ini__(node, row_no, viewpoint)
+        self.__wrapped__.__ini__(self, row_no, viewpoint)
+        return self
+
+    def __featurize__(self, p: streams.Parser) -> None:
+        self.__at__ = self.__to__ = 0
+        super().__featurize__(p)
+        self.__wrapped__.__featurize__(p)
+
+
 class OToken(Token):
     """Represents an inner token for the root phrase when no user-defined phrase is active.
     """
@@ -670,6 +735,8 @@ T_RESULT_TOKEN = Union[
     InstantToken,
     InstantEndToken,
     InstantNodeToken,
+    DefaultEndToken,
+    WrapNodeToken,
     OToken,
     EOF,
     RootNode,
@@ -679,6 +746,7 @@ T_INNER_TOKEN = Union[
     NodeToken,
     InstantToken,
     InstantNodeToken,
+    WrapNodeToken,
     OToken,
 ]
 T_ANY_TOKEN = Union[
@@ -691,6 +759,8 @@ T_ANY_TOKEN = Union[
     InstantToken,
     InstantEndToken,
     InstantNodeToken,
+    DefaultEndToken,
+    WrapNodeToken,
     OToken,
     EOF,
     OEOF,

@@ -14,6 +14,12 @@ pip install syntax-parser-prototype --upgrade
 pip install syntax-parser-prototype[debug] --upgrade
 ```
 
+> see [Change Log](#change-log) for pre-releases
+> 
+> ```commandline
+> pip install syntax-parser-prototype==3.1a1
+> ```
+
 
 ## Quick Start
 
@@ -446,6 +452,23 @@ Prevents comparison of _priority_[^3] with other tokens and accepts the token di
 Prevents comparison of _priority_[^3] with other tokens and accepts the token directly.
 
 
+##### class DefaultEndToken(EndToken)
+(_special type_) Special end token type that can be returned by `Phrase.ends()`.
+
+This end token closes the associated phrase if no start of a subphrase was found.
+
+
+##### class WrapNodeToken(NodeToken)
+(_special type_) Special node token that wraps another node token that can be returned by `Phrase.starts()`.
+
+Functions as an interface to the wrapped node regarding token priority.
+The parent node of the wrapped one will be this.
+This node does not contain any content in the result, but is a valid node token.
+
+
+
+
+<hr>
 
 #### Internal Token Types
 
@@ -575,6 +598,15 @@ print(debug.pretty_xml(result))
 
 ## Change Log
 
+
+### 3.1a1 — feature update
+- added `class DefaultEndToken(EndToken)`
+- added `class WrapNodeToken(NodeToken)`
+- changed parameterization of `to` for `TDefaultToken` in `DefaultTokenizeStream` from `0` to `-1`
+- removed `Parser.__carby__`
+- changed module `typing`
+
+
 ### 3.0 — major release
 - added `node` shortcut in `TokenizeStream`
 - added less restrictive type hints in `Phrase` and `Root` generics
@@ -606,6 +638,8 @@ the parser would not have recognized if it did not advance.
 - Version 3 differs fundamentally from its predecessors
 
 
+
+<hr>
 
 [^1]: A row is not necessarily a line as it is generally understood.
 [^2]: Standalone tokens are token types that do not trigger a phrase change and are assigned directly to the parent phrase.

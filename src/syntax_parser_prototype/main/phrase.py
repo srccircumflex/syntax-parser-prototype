@@ -71,6 +71,7 @@ class Phrase:
             | tokens.MaskNodeToken
             | tokens.InstantToken
             | tokens.InstantNodeToken
+            | tokens.WrapNodeToken
     ):
         """[*ENTRY*]
 
@@ -125,6 +126,7 @@ class Phrase:
     def ends(self, stream: streams.Stream) -> (
             None
             | tokens.EndToken
+            | tokens.DefaultEndToken
             | tokens.InstantEndToken
     ):
         """[*ENTRY*]

@@ -1,4 +1,4 @@
-__version__ = "3.0"
+__version__ = "3.1a1"
 __docformat__ = "reStructuredText"
 
 from .main.phrase import *

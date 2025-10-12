@@ -172,7 +172,7 @@ class DefaultTokenizeStream(TokenizeStream):
         self.__stream__.node.inner.append(
             self.__feat_token__.__feat_phrase__.TDefaultToken(
                 at=0,
-                to=-00,
+                to=-1,
             ).__ini_from_tokenize__(self.designated, self)
         )
 
@@ -266,11 +266,11 @@ class Parser(Stream, Generic[TV_ROOT, TV_ROOT_NODE]):
         """advance viewpoint and __pos__ by n"""
         self.viewpoint = self.__position__ = self.viewpoint + n
 
-    def __carby__(self, item: tokens.T_START_TOKENS):
-        """advance viewpoint and __pos__ to the end of a parsed token"""
-        self.__carry__(item.__to__)
-        if self.viewpoint >= len(self.row):
-            self.__nextrow__()
+    # def __carby__(self, item: tokens.T_START_TOKENS):
+    #     """advance viewpoint and __pos__ to the end of a parsed token"""
+    #     self.__carry__(item.__to__)
+    #     if self.viewpoint >= len(self.row):
+    #         self.__nextrow__()
 
     def __mask_continue__(self) -> tokens.T_BASE_TOKENS:
         """search for a mask continuation, otherwise return the found non-mask token"""

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, TypeVar, Any
+from typing import TYPE_CHECKING, TypeVar
 
 __all__ = (
     "TV_NODE_TOKEN",
@@ -17,7 +17,9 @@ if TYPE_CHECKING:
     TV_PHRASE = TypeVar("TV_PHRASE", bound=Phrase | Root, covariant=True)
     TV_ROOT = TypeVar("TV_ROOT", bound=Root, covariant=True)
 else:
-    TV_NODE_TOKEN = TypeVar("TV_NODE_TOKEN", bound=Any)
-    TV_ROOT_NODE = TypeVar("TV_ROOT_NODE", bound=Any)
-    TV_PHRASE = TypeVar("TV_PHRASE", bound=Any)
-    TV_ROOT = TypeVar("TV_ROOT", bound=Any)
+    globals().update({
+        "TV_NODE_TOKEN": TypeVar("TV_NODE_TOKEN"),  # type: ignore
+        "TV_ROOT_NODE": TypeVar("TV_ROOT_NODE"),    # type: ignore
+        "TV_PHRASE": TypeVar("TV_PHRASE"),          # type: ignore
+        "TV_ROOT": TypeVar("TV_ROOT"),              # type: ignore
+    })
