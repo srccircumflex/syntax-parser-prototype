@@ -514,7 +514,7 @@ pip install syntax-parser-prototype[debug] --upgrade
 #### HTML Server
 
 ```python
-from src.syntax_parser_prototype import debug
+from syntax_parser_prototype import debug
 debug.html_server(result)
 ```
 
@@ -524,7 +524,7 @@ debug.html_server(result)
 #### Structure Graph App
 
 ```python
-from src.syntax_parser_prototype import debug
+from syntax_parser_prototype import debug
 debug.structure_graph_app(MAIN)
 ```
 
@@ -533,7 +533,7 @@ debug.structure_graph_app(MAIN)
 #### Pretty XML
 
 ```python
-from src.syntax_parser_prototype import debug
+from syntax_parser_prototype import debug
 print(debug.pretty_xml(result))
 ```
 
