@@ -17,7 +17,7 @@ pip install syntax-parser-prototype[debug] --upgrade
 > see [Change Log](#change-log) for pre-releases
 > 
 > ```commandline
-> pip install syntax-parser-prototype==3.1a2
+> pip install syntax-parser-prototype==3.1a3
 > ```
 
 
@@ -43,8 +43,8 @@ The structural logic of a syntax is realized by **assigning phrases** objects **
 import keyword
 import re
 
-from src.syntax_parser_prototype import *
-from src.syntax_parser_prototype.features.tokenize import *
+from syntax_parser_prototype import *
+from syntax_parser_prototype.features.tokenize import *
 
 
 # simple string definition
@@ -269,7 +269,7 @@ if __name__ == "__main__":
         # visualisation
         print(*(f"std.  repr: {t} {t!r}" for t in NUMBER42), sep="\n")
 
-        from src.syntax_parser_prototype import debug
+        from syntax_parser_prototype import debug
 
         print(*(f"debug repr: {t} {t!r}" for t in NUMBER42), sep="\n")
 
@@ -647,7 +647,7 @@ pip install syntax-parser-prototype[debug] --upgrade
 #### HTML Server
 
 ```python
-from src.syntax_parser_prototype import debug
+from syntax_parser_prototype import debug
 debug.html_server(result)
 ```
 
@@ -657,7 +657,7 @@ debug.html_server(result)
 #### Structure Graph App
 
 ```python
-from src.syntax_parser_prototype import debug
+from syntax_parser_prototype import debug
 debug.structure_graph_app(MAIN)
 ```
 
@@ -666,7 +666,7 @@ debug.structure_graph_app(MAIN)
 #### Pretty XML
 
 ```python
-from src.syntax_parser_prototype import debug
+from syntax_parser_prototype import debug
 
 print(debug.pretty_xml(result))
 ```
@@ -732,6 +732,7 @@ print(debug.pretty_xml(result))
 
 ## Change Log
 
+### 3.1a3  — merge fixes
 
 ### 3.1a2 — improvements and cleanup
 - added optional `indent` and `newline` parameters to `debug.pretty_xml()`
