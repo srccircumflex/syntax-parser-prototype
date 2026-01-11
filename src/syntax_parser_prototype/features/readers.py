@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Generator, Any, Reversible, Callable, Literal
 
 if TYPE_CHECKING:
-    from typing_extensions import Self
+    from typing import Self
     from ..main import tokens
     __TokenReversible__ = Reversible[tokens.Token]
 else:
@@ -22,12 +22,13 @@ __all__ = (
 
 
 class TokenReader(__TokenReversible__):
-    """Provides functionality to iterate through tokens in a one-dimensional
-    context and other structure-related methods.
+    """Provides functionality to **iterate** through **tokens** in a **one-dimensional**
+    context and other **structure-related methods**.
 
-    The default behavior as an iterator is to iterate one-dimensionally from the
-    token that created the reader (anchor) to the last token (excl. the anchor).
-    The iterator can be reversed using ``reversed(...)`` or ``__call__(reverse=True)``.
+    The **default iterator behavior** is to iterate one-dimensionally from the
+    token that created the reader (**anchor**) **exclusive to the last token**.
+    The **reverse** iterator can be obtained via ``reversed(...)`` or
+    the call parameter ``reverse=True``.
 
     Deviating contexts can be obtained via the properties:
         - ``thereafter``: from after the anchor to the end of data (excl. anchor) (default)

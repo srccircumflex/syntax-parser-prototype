@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections import deque
 from io import StringIO
-from typing import TYPE_CHECKING, Pattern, Callable, Literal, Iterable, Generic, Any
+from typing import TYPE_CHECKING, Pattern, Callable, Literal, Iterable, Any
 
 if TYPE_CHECKING:
     from . import phrase
@@ -10,7 +10,6 @@ if TYPE_CHECKING:
     from . import tokens
 
 from ..exceptions import *
-from ..typing import *
 
 
 __all__ = (
@@ -21,7 +20,7 @@ __all__ = (
 )
 
 
-class TokenizeStream(Generic[TV_PHRASE, TV_NODE_TOKEN]):
+class TokenizeStream:
     r"""Tokenizer stream is a sub-stream that is passed to the ``Phrase.tokenize`` method (if defined)
     and allows the dedicated tokenization of the designated part of a row.
 
@@ -51,7 +50,7 @@ class TokenizeStream(Generic[TV_PHRASE, TV_NODE_TOKEN]):
     :ivar eat_while: `<method>` commit character by character from the unparsed content and advance the stream as long as the function call returns a truth value, then return the sum.
     """
 
-    __stream__: Stream[TV_PHRASE, TV_NODE_TOKEN]
+    __stream__: Stream
     """main stream object"""
     __at__: int
     """start point of the current token in the designated part"""
@@ -72,7 +71,7 @@ class TokenizeStream(Generic[TV_PHRASE, TV_NODE_TOKEN]):
     """context in which the tokenizer operates: LStrip, inner or RTokenize."""
 
     @property
-    def node(self) -> tokens.NodeToken[TV_PHRASE, TV_NODE_TOKEN] | TV_NODE_TOKEN:
+    def node(self) -> tokens.NodeToken:
         """the current active node where the tokens will be added to"""
         return self.__stream__.node
 
@@ -177,7 +176,7 @@ class DefaultTokenizeStream(TokenizeStream):
         )
 
 
-class Stream(Generic[TV_PHRASE, TV_NODE_TOKEN]):
+class Stream:
     """The stream is used to parse lines of text and is passed as a pure state object to the
     methods “Phrase.starts” and “Phrase.ends”
     (**mutations should not be performed by user code**).
@@ -202,7 +201,7 @@ class Stream(Generic[TV_PHRASE, TV_NODE_TOKEN]):
     """current row to parse"""
     buffer: deque[str]
     """remain unparsed rows"""
-    node: tokens.NodeToken[TV_PHRASE, TV_NODE_TOKEN] | TV_NODE_TOKEN
+    node: tokens.NodeToken
     """current active node"""
     row_no: int
     """row count"""
@@ -223,10 +222,10 @@ class Stream(Generic[TV_PHRASE, TV_NODE_TOKEN]):
         return self.row[:self.viewpoint]
 
 
-class Parser(Stream, Generic[TV_ROOT, TV_ROOT_NODE]):
-    entry: tokens.RootNode[TV_ROOT, TV_ROOT_NODE] | tokens.NodeToken[TV_ROOT, TV_ROOT_NODE] | TV_ROOT_NODE
+class Parser(Stream):
+    entry: tokens.RootNode | tokens.NodeToken
     """the entry node"""
-    root: tokens.RootNode[TV_ROOT, TV_ROOT_NODE] | TV_ROOT_NODE
+    root: tokens.RootNode
     """the root node"""
 
     __suffix_phrases__: set[phrase.Phrase] | None

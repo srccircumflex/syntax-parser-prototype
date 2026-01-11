@@ -34,7 +34,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Union
 
 if TYPE_CHECKING:
-    from typing_extensions import Self
+    from typing import Self
     from ..main import phrase, tokens, streams
 
 from ..exceptions import *

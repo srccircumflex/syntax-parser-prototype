@@ -1,15 +1,14 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Union, Generic
+from typing import TYPE_CHECKING, Union, Iterator
 
 from xpropcache import PropCache
 
 if TYPE_CHECKING:
-    from typing_extensions import Self
+    from typing import Self
     from . import streams, phrase
     from ..features import indices
 
-from ..typing import *
 from ..features import readers, tokenize
 
 __all__ = (
@@ -34,7 +33,7 @@ __all__ = (
 )
 
 
-class Token(Generic[TV_PHRASE, TV_NODE_TOKEN]):
+class Token:
     """Simple text content token and base type for all other tokens.
 
     Tokens of this type must be returned by ``Phrase.tokenize``
@@ -60,11 +59,11 @@ class Token(Generic[TV_PHRASE, TV_NODE_TOKEN]):
 
     content: str = ''
     """content of the token"""
-    node: NodeToken[TV_PHRASE, TV_NODE_TOKEN] | TV_NODE_TOKEN
+    node: NodeToken
     """source node of the token"""
     row_no: int
     """row number where the token is located (starting from 0)"""
-    phrase: phrase.Phrase | TV_PHRASE | None = None  # set by stream in nodes or stand-alone-tokens
+    phrase: phrase.Phrase | None = None  # set by stream in nodes or stand-alone-tokens
     """source phrase (only set in nodes or stand-alone-tokens)"""
 
     # @formatter:off
@@ -78,7 +77,7 @@ class Token(Generic[TV_PHRASE, TV_NODE_TOKEN]):
     __generators__: readers.__TokenGenerators__ = readers.__TokenGenerators__()
 
     @property
-    def tokenReader(self) -> readers.TokenReader | readers.NodeTokenReader:
+    def tokenReader(self) -> readers.TokenReader:
         """Provides functionality to iterate through tokens in a one-dimensional
         context and other structure-related methods.
         """
@@ -186,15 +185,23 @@ class Token(Generic[TV_PHRASE, TV_NODE_TOKEN]):
         """return self.content"""
         return self.content
 
+    def __bool__(self):
+        """whether any content is present"""
+        return self.content and True
+
     def atConfirmed(self) -> None:
-        """[*ENTRY*] (callback) called when the token has been confirmed (will be included in the result).
+        """[*ENTRY*] (hook) called when the token has been confirmed (will be included in the result).
 
         Nodes and stand-alone tokens do not yet contain any `content` at this stage,
         and the attributes `__at__` and `__to__` can be modified by the featurization.
         """
 
     def atFeaturized(self) -> None:
-        """[*ENTRY*] (callback) called after the token has been confirmed and featurized (only triggered for node and stand-alone tokens).
+        """[*ENTRY*] (hook) called after the token has been confirmed and featurized
+        (only triggered for node, end and stand-alone tokens).
+
+        The pre-implementation in nodes / end tokens executes
+        the hooks ``atStart`` / ``atEnd`` of the phrase.
         """
 
     def __ini__(
@@ -230,7 +237,7 @@ class Token(Generic[TV_PHRASE, TV_NODE_TOKEN]):
         self.atFeaturized()
 
 
-class NodeToken(Token, Generic[TV_PHRASE, TV_NODE_TOKEN]):
+class NodeToken(Token):
     r"""Represents the beginning of a phrase as a token and
     contains subordinate tokens and the end token.
 
@@ -248,7 +255,7 @@ class NodeToken(Token, Generic[TV_PHRASE, TV_NODE_TOKEN]):
 
     id = "N"
     """[*ENTRY*] token id (default usage: only for debugging)"""
-    phrase: phrase.Phrase | TV_PHRASE
+    phrase: phrase.Phrase
     """source phrase"""
     inner: list[Token | NodeToken]
     """tokens of the phrase (excl. this node and the end token, can contain sub- or suffix-branches)"""
@@ -302,7 +309,8 @@ class NodeToken(Token, Generic[TV_PHRASE, TV_NODE_TOKEN]):
         self.extras = extras  # type: ignore
 
     @PropCache.cached_property
-    def root(self) -> RootNode[TV_PHRASE, TV_NODE_TOKEN] | TV_ROOT_NODE:
+    def root(self) -> RootNode:
+        """root node of the tree"""
         return self.node.root
 
     @property
@@ -334,6 +342,14 @@ class NodeToken(Token, Generic[TV_PHRASE, TV_NODE_TOKEN]):
         """get inner token on index"""
         return self.inner[item]
 
+    def __iter__(self) -> Iterator[T_INNER_TOKEN]:
+        """iterate over inner tokens"""
+        return iter(self.inner)
+
+    def __bool__(self):
+        """whether any content is present in the node"""
+        return self.content or self.inner or self.end.content
+
     def __ini__(self, node: NodeToken, row_no: int, viewpoint: int) -> Self:
         self.inner = list()
         self.end = self.phrase.TOpenEndToken(self)
@@ -346,6 +362,10 @@ class NodeToken(Token, Generic[TV_PHRASE, TV_NODE_TOKEN]):
     def __ends__(self, stream: streams.Stream) -> EndToken | None:
         """[*internal*] shortcut"""
         return self.phrase.ends(stream)
+
+    def atFeaturized(self) -> None:
+        super().atFeaturized()
+        self.phrase.atStart(self)
 
 
 class EndToken(Token):
@@ -375,7 +395,7 @@ class EndToken(Token):
 
     @property
     def inner_index(self) -> None:
-        raise ValueError(f"{self.__class__} (EndToken) is never in inner")
+        raise ValueError(f"{self.__class__} (EndToken) is never an inner token")
 
     @property
     def previous(self) -> T_RESULT_TOKEN:
@@ -394,6 +414,10 @@ class EndToken(Token):
 
     def __ini__(self, node: NodeToken, row_no: int, viewpoint: int) -> Self:
         return super().__ini__(node, row_no, viewpoint)
+
+    def atFeaturized(self) -> None:
+        super().atFeaturized()
+        self.node.phrase.atEnd(self.node)
 
 
 class OpenEndToken(Token):
@@ -588,7 +612,7 @@ class DefaultEndToken(EndToken):
         return False
 
 
-class WrapNodeToken(NodeToken, Generic[TV_PHRASE, TV_NODE_TOKEN]):
+class WrapNodeToken(NodeToken):
     """Special node token that wraps another node token that can be returned by ``Phrase.starts``.
 
     Functions as an interface to the wrapped node regarding token priority.
@@ -609,8 +633,8 @@ class WrapNodeToken(NodeToken, Generic[TV_PHRASE, TV_NODE_TOKEN]):
 
     def __init__(
             self,
-            node: NodeToken[TV_PHRASE, TV_NODE_TOKEN] | TV_NODE_TOKEN,
-            phrase: phrase.Phrase | TV_PHRASE,
+            node: NodeToken,
+            phrase: phrase.Phrase,
             **extras
     ):
         node.phrase = phrase
@@ -675,14 +699,14 @@ class OEOF(OpenEndToken):
         raise EOFError
 
 
-class RootNode(NodeToken, Generic[TV_PHRASE, TV_NODE_TOKEN]):
+class RootNode(NodeToken):
     """Represents the root of the parsed input and contains all other tokens
     (has no content but is a valid token to represent the result root).
     """
 
     id = "R"
     """[*ENTRY*] token id (default usage: only for debugging)"""
-    phrase: phrase.Root | TV_PHRASE
+    phrase: phrase.Root
     """Main"""
 
     inner: list[OToken | NodeToken]
@@ -721,10 +745,6 @@ class RootNode(NodeToken, Generic[TV_PHRASE, TV_NODE_TOKEN]):
     def __ends__(self, stream: streams.Stream) -> None:
         """return None"""
         return None
-
-    def __bool__(self):
-        """whether any content is present in the result"""
-        return self.content or self.inner or self.end.content
 
 
 T_RESULT_TOKEN = Union[

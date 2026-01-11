@@ -91,8 +91,10 @@ class ExtensiveTokenIndex(TokenIndex):
             self.__idx__ = __idx__
             self.first_token = first_token
 
-        first_token: tokens.T_BASE_TOKENS
-        """first token in the row"""
+        @PropCache.cached_property
+        def row_no(self) -> int:
+            """row number (starting from 0)"""
+            return self.first_token.row_no
 
         @PropCache.cached_property
         def row_tokens(self) -> list[tokens.T_BASE_TOKENS]:
@@ -104,15 +106,13 @@ class ExtensiveTokenIndex(TokenIndex):
                 tokens.append(token)
             return tokens
 
+        first_token: tokens.T_BASE_TOKENS
+        """first token in the row"""
+
         @PropCache.cached_property
         def last_token(self) -> tokens.T_BASE_TOKENS:
             """last token in the row"""
             return self.row_tokens[-1]
-
-        @PropCache.cached_property
-        def row_no(self) -> int:
-            """row number (starting from 0)"""
-            return self.first_token.row_no
 
         @PropCache.cached_property(_CacheKeys.CHARCOUNT)
         def data_start(self) -> int:

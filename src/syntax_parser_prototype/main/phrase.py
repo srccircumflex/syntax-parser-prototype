@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import overload, TYPE_CHECKING, Type, final, Iterable, Any, Callable
 
 if TYPE_CHECKING:
-    from typing_extensions import Self
+    from typing import Self
 
 from ..features import indices
 from . import tokens, streams
@@ -308,6 +308,16 @@ class Phrase:
         """Remove the phrase from its own suffix-phrases."""
         self.__suffix_phrases__.discard(self)
         return self
+
+    def atStart(self, node: tokens.T_START_TOKENS):
+        """[*ENTRY*] (hook) called after a node or stand-alone token
+        from ``starts`` has been confirmed and featurized.
+        """
+
+    def atEnd(self, node: tokens.NodeToken):
+        """[*ENTRY*] (hook) called after an end token
+        from ``ends`` has been confirmed and featurized.
+        """
 
 
 class Root:

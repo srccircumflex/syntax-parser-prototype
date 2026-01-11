@@ -131,20 +131,20 @@ ex.::
 """
 
 
-def pretty_xml(branch: tokens.NodeToken | tokens.EOF) -> str:
+def pretty_xml(branch: tokens.NodeToken | tokens.EOF, indent: str | None = "\t", newline: str | None = "\n") -> str:
     """Converts the representation of a branch into a formatted,
     pretty-printed XML string for better readability.
     """
-    _repr = __repr__[tokens.NodeToken]
+    _default_repr = __repr__[tokens.NodeToken]
     with __repr__:
         __repr__[tokens.NodeToken] = __repr__.NodeToken__repr__recursive
     try:
         string = repr(branch)
     finally:
         with __repr__:
-            __repr__[tokens.NodeToken] = _repr
+            __repr__[tokens.NodeToken] = _default_repr
     import xml.dom.minidom
-    return xml.dom.minidom.parseString(string).toprettyxml()
+    return xml.dom.minidom.parseString(string).toprettyxml(indent=indent or "", newl=newline or "")
 
 
 class _html_server:
