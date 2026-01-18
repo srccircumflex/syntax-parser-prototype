@@ -230,12 +230,12 @@ class _html_server:
 
         for token in branch.tokenReader.branch:
             classes = " ".join(t.id for t in reversed(type(token).mro()[:-1]) if issubclass(t, (tokens.Token, phrase.Phrase, phrase.Root)))  # -1: object
-            if isinstance(token, tokens.NodeToken):
+            if token.__fNODE__:
                 s = html.Span(className=str(token.phrase.id) + " " + classes, children=[token.content])
                 trace[-1].children.append(s)
                 trace.append(s)
                 __cb(token)
-            elif isinstance(token, tokens.EndToken):
+            elif token.__fEND__:
                 trace[-1].children.append(token.content)
                 trace.pop()
             else:

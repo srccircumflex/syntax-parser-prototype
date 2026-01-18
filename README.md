@@ -535,8 +535,8 @@ _(all kinds of tokens)_
 | `.inner_index`: int   | index of the token in the collection of the parent node                                                                                                  |
 | `.previous`: AnyToken | previous tokens in the one-dimensional level                                                                                                             |
 | `.next`: AnyToken     | next tokens in the one-dimensional level                                                                                                                 |
+| `.empty`: bool        | whether no content is present (`.content`)                                                                                                               |
 | `str(...)`            | == `.content`                                                                                                                                            |
-| `bool(...)`           | == `bool(.content)`                                                                                                                                      |
 | `.tokenReader`        | [Token read utility](#tokentokenreader)                                                                                                                  |
 
 
@@ -551,7 +551,7 @@ _(additional to general)_
 | `.root`: RootToken               | the documents root node                                               |
 | `.len_inner`: int                | total length of all contained tokens (recursive)                      |
 | `.len_branch`: int               | total length of the branch (recursive, incl. this node and end token) |
-| `bool(...)`                      | == `.content or .inner or .end.content`                               |
+| `.empty`: bool                   | whether no content is present (`.content \| .inner \| .end.content`)  |
 | `iter(...)`                      | == `iter(.inner)`                                                     |
 | `[i]`                            | == `.inner[i]`                                                        |
 
@@ -732,7 +732,13 @@ print(debug.pretty_xml(result))
 
 ## Change Log
 
-### 3.1a3  — merge fixes
+### 3.1a4 — fixes
+- removed `<AnyToken>.__bool__` (confusing and conflicts)
+- added `<AnyToken>.empty`
+
+
+### 3.1a3 — merge fixes
+
 
 ### 3.1a2 — improvements and cleanup
 - added optional `indent` and `newline` parameters to `debug.pretty_xml()`

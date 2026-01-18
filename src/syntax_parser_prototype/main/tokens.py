@@ -185,9 +185,15 @@ class Token:
         """return self.content"""
         return self.content
 
-    def __bool__(self):
-        """whether any content is present"""
-        return self.content and True
+    # ! confusing and conflicts: `if phrase.starts|ends():...`
+    # def __bool__(self):
+    #     """whether any content is present"""
+    #     return bool(self.content)
+
+    @property
+    def empty(self) -> bool:
+        """whether no content is present"""
+        return not self.content
 
     def atConfirmed(self) -> None:
         """[*ENTRY*] (hook) called when the token has been confirmed (will be included in the result).
@@ -346,9 +352,15 @@ class NodeToken(Token):
         """iterate over inner tokens"""
         return iter(self.inner)
 
-    def __bool__(self):
-        """whether any content is present in the node"""
-        return self.content or self.inner or self.end.content
+    # ! confusing and conflicts: `if phrase.starts|ends():...`
+    # def __bool__(self):
+    #     """whether any content is present in the node"""
+    #     return bool(self.content or self.inner or self.end.content)
+
+    @property
+    def empty(self) -> bool:
+        """whether no content is present in the node"""
+        return not self.content and not self.inner and not self.end.content
 
     def __ini__(self, node: NodeToken, row_no: int, viewpoint: int) -> Self:
         self.inner = list()
@@ -795,3 +807,52 @@ T_START_TOKENS = Union[
     Token,
     NodeToken,
 ]
+
+
+class XToken:
+    def __new__(cls, base: type[T_ANY_TOKEN], *args, **kwargs) -> T_ANY_TOKEN | Self:
+        t = type(f"{cls.__name__}({base.__name__})", (cls, base), {})
+        n = object.__new__(t)
+        n.__init__(*args, **kwargs)
+        return n
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
