@@ -40,11 +40,11 @@ class Token:
     or can represent a standalone token via ``Phrase.starts``.
 
     :param at: starting point of the token relative to ``stream.viewpoint``, in other words, in ``stream.unparsed``
-        -- **including the part that is processed by a custom feature configuration**.
+        -- **including the part processed by a custom feature configuration**.
     :param to: ending point of the token relative to ``stream.viewpoint``, in other words, in ``stream.unparsed``
-        -- **including the part that is processed by a custom feature configuration**.
+        -- **including the part processed by a custom feature configuration**.
     :param features: Features are special function parameters that can be passed to a node,
-        end or standalone token that significantly influence the parsing process (see the module documentation of ``syntax_parser_prototype.features`` for more information).
+        end, or standalone token that significantly influence the parsing process (see the module documentation of ``syntax_parser_prototype.features`` for more information).
     """
 
     id = "T"
@@ -168,7 +168,7 @@ class Token:
             return self.node.end
 
     def replace_content(self, content: str, reindex: bool = True) -> None:
-        """Replace the current content of the token with `content`. If the `reindex` is ``True`` (default),
+        """Replace the current content of the token with `content`. If `reindex` is ``True`` (default),
         adjusts internal indexing of the following tokens and resets certain caches as necessary.
 
         The new content should be valid for the token; it is neither checked nor parsed.
@@ -245,11 +245,11 @@ class NodeToken(Token):
 
 
     :param at: starting point of the token relative to ``stream.viewpoint``, in other words, in ``stream.unparsed``
-        -- **including the part that is processed by a custom feature configuration**.
+        -- **including the part processed by a custom feature configuration**.
     :param to: ending point of the token relative to ``stream.viewpoint``, in other words, in ``stream.unparsed``
-        -- **including the part that is processed by a custom feature configuration**.
+        -- **including the part processed by a custom feature configuration**.
     :param features: Features are special function parameters that can be passed to a node,
-        end or standalone token that significantly influence the parsing process (see the module documentation of ``syntax_parser_prototype.features`` for more information).
+        end, or standalone token that significantly influence the parsing process (see the module documentation of ``syntax_parser_prototype.features`` for more information).
     :param extras: Dynamic additional information about the node.
     """
 
@@ -320,7 +320,7 @@ class NodeToken(Token):
 
     @property
     def len_branch(self) -> int:
-        """length of all content in this branch (incl. subbranches, this node and the end token)"""
+        """length of all content in this branch (incl. subbranches, this node, and the end token)"""
         return self.len_token + self.len_inner + self.end.len_token
 
     @property
@@ -374,11 +374,11 @@ class EndToken(Token):
     ``Phrase.ends`` must return tokens of this type when a complex phrase ends.
 
     :param at: starting point of the token relative to ``stream.viewpoint``, in other words, in ``stream.unparsed``
-        -- **including the part that is processed by a custom feature configuration**.
+        -- **including the part processed by a custom feature configuration**.
     :param to: ending point of the token relative to ``stream.viewpoint``, in other words, in ``stream.unparsed``
-        -- **including the part that is processed by a custom feature configuration**.
+        -- **including the part processed by a custom feature configuration**.
     :param features: Features are special function parameters that can be passed to a node,
-        end or standalone token that significantly influence the parsing process (see the module documentation of ``syntax_parser_prototype.features`` for more information).
+        end, or standalone token that significantly influence the parsing process (see the module documentation of ``syntax_parser_prototype.features`` for more information).
     """
 
     id = "E"
@@ -474,7 +474,7 @@ class OpenEndToken(Token):
 
     @property
     def next(self) -> OpenEndToken | OEOF | EOF:
-        """next token (in on the one-dimensional plane). can be another OpenEndToken, OEOF or EOF from here"""
+        """next token (in on the one-dimensional plane). can be another OpenEndToken, OEOF, or EOF from here"""
         return self.node.node.end
 
     def replace_content(self, content: str, reindex: bool = True) -> None:
@@ -492,9 +492,9 @@ class MaskToken(Token):
             If ``start`` returns a ``MaskToken``, sub-/suffix-phrases of this Phrase are **NOT** evaluated.
 
     :param at: starting point of the token relative to ``stream.viewpoint``, in other words, in ``stream.unparsed``
-        -- **including the part that is processed by a custom feature configuration**.
+        -- **including the part processed by a custom feature configuration**.
     :param to: ending point of the token relative to ``stream.viewpoint``, in other words, in ``stream.unparsed``
-        -- **including the part that is processed by a custom feature configuration**.
+        -- **including the part processed by a custom feature configuration**.
     """
 
     id = "?"  # never present in the result
@@ -514,9 +514,9 @@ class MaskNodeToken(MaskToken, NodeToken):
             If ``start`` returns a ``MaskToken``, sub-/suffix-phrases of this Phrase are **NOT** evaluated.
 
     :param at: starting point of the token relative to ``stream.viewpoint``, in other words, in ``stream.unparsed``
-        -- **including the part that is processed by a custom feature configuration**.
+        -- **including the part processed by a custom feature configuration**.
     :param to: ending point of the token relative to ``stream.viewpoint``, in other words, in ``stream.unparsed``
-        -- **including the part that is processed by a custom feature configuration**.
+        -- **including the part processed by a custom feature configuration**.
     """
 
     id = "?N"  # never present in the result
@@ -531,11 +531,11 @@ class InstantToken(Token):
     Prevents comparison of priority with other tokens and accepts the token directly.
 
     :param at: starting point of the token relative to ``stream.viewpoint``, in other words, in ``stream.unparsed``
-        -- **including the part that is processed by a custom feature configuration**.
+        -- **including the part processed by a custom feature configuration**.
     :param to: ending point of the token relative to ``stream.viewpoint``, in other words, in ``stream.unparsed``
-        -- **including the part that is processed by a custom feature configuration**.
+        -- **including the part processed by a custom feature configuration**.
     :param features: Features are special function parameters that can be passed to a node,
-        end or standalone token that significantly influence the parsing process (see the module documentation of ``syntax_parser_prototype.features`` for more information).
+        end, or standalone token that significantly influence the parsing process (see the module documentation of ``syntax_parser_prototype.features`` for more information).
     """
 
     id = "i"
@@ -555,11 +555,11 @@ class InstantEndToken(EndToken, InstantToken):
     Prevents comparison of priority with other tokens and accepts the token directly.
 
     :param at: starting point of the token relative to ``stream.viewpoint``, in other words, in ``stream.unparsed``
-        -- **including the part that is processed by a custom feature configuration**.
+        -- **including the part processed by a custom feature configuration**.
     :param to: ending point of the token relative to ``stream.viewpoint``, in other words, in ``stream.unparsed``
-        -- **including the part that is processed by a custom feature configuration**.
+        -- **including the part processed by a custom feature configuration**.
     :param features: Features are special function parameters that can be passed to a node,
-        end or standalone token that significantly influence the parsing process (see the module documentation of ``syntax_parser_prototype.features`` for more information).
+        end, or standalone token that significantly influence the parsing process (see the module documentation of ``syntax_parser_prototype.features`` for more information).
     """
 
     id = "iE"
@@ -575,11 +575,11 @@ class InstantNodeToken(NodeToken, InstantToken):
     Prevents comparison of priority with other tokens and accepts the token directly.
 
     :param at: starting point of the token relative to ``stream.viewpoint``, in other words, in ``stream.unparsed``
-        -- **including the part that is processed by a custom feature configuration**.
+        -- **including the part processed by a custom feature configuration**.
     :param to: ending point of the token relative to ``stream.viewpoint``, in other words, in ``stream.unparsed``
-        -- **including the part that is processed by a custom feature configuration**.
+        -- **including the part processed by a custom feature configuration**.
     :param features: Features are special function parameters that can be passed to a node,
-        end or standalone token that significantly influence the parsing process (see the module documentation of ``syntax_parser_prototype.features`` for more information).
+        end, or standalone token that significantly influence the parsing process (see the module documentation of ``syntax_parser_prototype.features`` for more information).
     """
 
     id = "iN"
@@ -595,11 +595,11 @@ class DefaultEndToken(EndToken):
     This end token closes the associated phrase if no start of a subphrase was found.
 
     :param at: starting point of the token relative to ``stream.viewpoint``, in other words, in ``stream.unparsed``
-        -- **including the part that is processed by a custom feature configuration**.
+        -- **including the part processed by a custom feature configuration**.
     :param to: ending point of the token relative to ``stream.viewpoint``, in other words, in ``stream.unparsed``
-        -- **including the part that is processed by a custom feature configuration**.
+        -- **including the part processed by a custom feature configuration**.
     :param features: Features are special function parameters that can be passed to a node,
-        end or standalone token that significantly influence the parsing process (see the module documentation of ``syntax_parser_prototype.features`` for more information).
+        end, or standalone token that significantly influence the parsing process (see the module documentation of ``syntax_parser_prototype.features`` for more information).
     """
 
     id = "e"
@@ -743,7 +743,7 @@ class RootNode(NodeToken):
         raise EOFError
 
     def __ends__(self, stream: streams.Stream) -> None:
-        """return None"""
+        """never - return None"""
         return None
 
 

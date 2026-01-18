@@ -184,7 +184,7 @@ class Stream:
     :ivar row: The current row being parsed.
     :type row: str
     :ivar buffer: Remaining unparsed rows stored in a deque.
-    :type doc: deque[str]
+    :type buffer: deque[str]
     :ivar node: The currently active node in the parsing process.
     :type node: NodeToken
     :ivar row_no: Counter for rows processed.
